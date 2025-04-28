@@ -17,11 +17,11 @@ if __name__ == "__main__":
 	device = pykinect.start_device(config=device_config)
 
 	# Start body tracker
-	tracker_config = pykinect.default_tracker_configuration
-	tracker_config.sensor_orientation = pykinect.K4ABT_SENSOR_ORIENTATION_DEFAULT
-	tracker_config.tracker_processing_mode = pykinect.K4ABT_TRACKER_PROCESSING_MODE_GPU
-	tracker_config.gpu_device_id = 0
-	bodyTracker = pykinect.start_body_tracker(tracker_configuration=tracker_config)
+	# tracker_config = default_tracker_configuration
+	# tracker_config.sensor_orientation = pykinect.K4ABT_SENSOR_ORIENTATION_DEFAULT
+	# tracker_config.tracker_processing_mode = pykinect.K4ABT_TRACKER_PROCESSING_MODE_GPU
+	# tracker_config.gpu_device_id = 0
+	bodyTracker = pykinect.start_body_tracker()
 
 	cv2.namedWindow('Depth image with skeleton',cv2.WINDOW_NORMAL)
 	while True:
@@ -46,6 +46,9 @@ if __name__ == "__main__":
 
 		# Draw the skeletons
 		combined_image = body_frame.draw_bodies(combined_image)
+
+		# double the image size for better visibility
+		combined_image = cv2.resize(combined_image, (0,0), fx=1.7, fy=1.7)
 
 		# Overlay body segmentation on depth image
 		cv2.imshow('Depth image with skeleton',combined_image)
