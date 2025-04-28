@@ -79,16 +79,19 @@ if __name__ == "__main__":
 
 			if 8 in corner_dict_3d and 9 in corner_dict_3d:
 				crn8 = corner_dict_3d[8]
-				c0 = crn8[0] + (crn8[1] - crn8[0]) * 0.5
+				vec0 = (crn8[1] - crn8[0] + crn8[2] - crn8[3]) * 0.5
+				c0 = crn8[0] + vec0 * 0.5
 
 				# depth is 2.5 cm
 				crn9 = corner_dict_3d[9]
-				len1 = np.linalg.norm(crn9[1] - crn9[0])
-				c0 = c0 + (crn9[1] - crn9[0])/len1 * 30
+				vec1 = (crn9[1] - crn9[0] + crn9[2] - crn9[3]) * 0.5
+				len1 = np.linalg.norm(vec1)
+				c0 = c0 + vec1/len1 * 30
 
 				# height is 8.5 cm
-				len2 = np.linalg.norm(crn8[0] - crn8[3])
-				c0 = c0 + (crn8[0] - crn8[3])/len2 * 85
+				vec2 = (crn8[0] - crn8[3] + crn8[1] - crn8[2]) * 0.5
+				len2 = np.linalg.norm(vec2)
+				c0 = c0 + vec2/len2 * 85
 
 				pixel = k4a_float3_t((c0[0], c0[1], c0[2]))
 				c0_2d = device.calibration.convert_3d_to_2d(pixel, K4A_CALIBRATION_TYPE_DEPTH, K4A_CALIBRATION_TYPE_COLOR)
