@@ -130,11 +130,33 @@ if __name__ == "__main__":
 							  [ 0.16960551,  0.09806402, -0.98062094],
 							  [-0.73339725, -0.65210589, -0.19205825]])
 
+				# emblo pos in room coordinates
+				c_r = np.array([1.336217 , 2.7460349, 1.1113696])
+
+				s = 200 # 20 cm
+
+				# coordinate frame in emblo coordinates
+				p0_e = np.array([s, 0, 0])
+				p1_e = np.array([0, s, 0])
+				p2_e = np.array([0, 0, s])
+
+				p0 = R @ p0_e + c0
+				p1 = R @ p1_e + c0
+				p2 = R @ p2_e + c0
+
+				p0_2d = device.calibration.convert_3d_to_2d(k4a_float3_t((p0[0], p0[1], p0[2])), K4A_CALIBRATION_TYPE_DEPTH, K4A_CALIBRATION_TYPE_COLOR)
+				p1_2d = device.calibration.convert_3d_to_2d(k4a_float3_t((p1[0], p1[1], p1[2])), K4A_CALIBRATION_TYPE_DEPTH, K4A_CALIBRATION_TYPE_COLOR)
+				p2_2d = device.calibration.convert_3d_to_2d(k4a_float3_t((p2[0], p2[1], p2[2])), K4A_CALIBRATION_TYPE_DEPTH, K4A_CALIBRATION_TYPE_COLOR)
+
 				pixel = k4a_float3_t((c0[0], c0[1], c0[2]))
 				c0_2d = device.calibration.convert_3d_to_2d(pixel, K4A_CALIBRATION_TYPE_DEPTH, K4A_CALIBRATION_TYPE_COLOR)
 
 				try:
 					image = cv2.circle(image, (int(c0_2d.xy.x), int(c0_2d.xy.y)), 10, (0, 255, 0), -1)
+
+					image = cv2.line(image, (int(p0_2d.xy.x), int(p0_2d.xy.y)), (int(c0_2d.xy.x), int(c0_2d.xy.y)), (0, 0, 255), 2)
+					image = cv2.line(image, (int(p1_2d.xy.x), int(p1_2d.xy.y)), (int(c0_2d.xy.x), int(c0_2d.xy.y)), (0, 255, 0), 2)
+					image = cv2.line(image, (int(p2_2d.xy.x), int(p2_2d.xy.y)), (int(c0_2d.xy.x), int(c0_2d.xy.y)), (255, 0, 0), 2)
 				except:
 					print("NaN value in c0_2d")
 				
@@ -167,7 +189,7 @@ if __name__ == "__main__":
 		cv2.imshow('ArUco Image',image)
 
 		# Press q key to stop
-		if cv2.waitKey(1) == ord('q'):
+		if cv2.waitKey(0) == ord('q'):
 			break
 
 
