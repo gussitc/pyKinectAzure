@@ -5,21 +5,34 @@ import numpy as np
 from pykinect_azure import K4A_CALIBRATION_TYPE_COLOR, K4A_CALIBRATION_TYPE_DEPTH, k4a_float2_t, k4a_float3_t
 import matplotlib.pyplot as plt
 
+USE_PLAYBACK = True
+
 if __name__ == "__main__":
 # if True:
 
 	# Initialize the library, if the library is not found, add the library path as argument
 	pykinect.initialize_libraries()
 
-	# Modify camera configuration
-	device_config = pykinect.default_configuration
-	device_config.color_format = pykinect.K4A_IMAGE_FORMAT_COLOR_BGRA32
-	device_config.color_resolution = pykinect.K4A_COLOR_RESOLUTION_720P
-	device_config.depth_mode = pykinect.K4A_DEPTH_MODE_WFOV_2X2BINNED
-	# print(device_config)
+	if USE_PLAYBACK:
+		video_filename = "calibration.mkv"
 
-	# Start device
-	device = pykinect.start_device(config=device_config)
+		# Initialize the library, if the library is not found, add the library path as argument
+		pykinect.initialize_libraries()
+
+		# Start playback
+		device = pykinect.start_playback(video_filename)
+
+		playback_config = device.get_record_configuration()
+	else:
+		# Modify camera configuration
+		device_config = pykinect.default_configuration
+		device_config.color_format = pykinect.K4A_IMAGE_FORMAT_COLOR_BGRA32
+		device_config.color_resolution = pykinect.K4A_COLOR_RESOLUTION_1080P
+		device_config.depth_mode = pykinect.K4A_DEPTH_MODE_WFOV_2X2BINNED
+		# print(device_config)
+
+		# Start device
+		device = pykinect.start_device(config=device_config)
 
 	aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
 	parameters = cv2.aruco.DetectorParameters()
@@ -29,10 +42,19 @@ if __name__ == "__main__":
 	# Detect the markers
 
 	# cv2.namedWindow('Transformed Color Image',cv2.WINDOW_NORMAL)
+	emblo_pos = []
+	x_vecs = []
+	y_vecs = []
+	z_vecs = []
 	while True:
 		
 		# Get capture
-		capture = device.update()
+		if USE_PLAYBACK:
+			ret, capture = device.update()
+			if not ret:
+				break
+		else:
+			capture = device.update()
 
 		# Get the color image from the capture
 		ret, color_image = capture.get_transformed_color_image()
@@ -78,20 +100,35 @@ if __name__ == "__main__":
 				cv2.drawKeypoints(color_image, corner_dict_2d[9], color_image, (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
 			if 8 in corner_dict_3d and 9 in corner_dict_3d:
+				# in the middle of the marker 8
 				crn8 = corner_dict_3d[8]
-				vec0 = (crn8[1] - crn8[0] + crn8[2] - crn8[3]) * 0.5
-				c0 = crn8[0] + vec0 * 0.5
+				x_vec = (crn8[1] - crn8[0] + crn8[2] - crn8[3]) * 0.5
+				x_norm = np.linalg.norm(x_vec)
+				x_vec_norm = x_vec/x_norm
+				c0 = crn8[0] + x_vec * 0.5
 
 				# depth is 2.5 cm
 				crn9 = corner_dict_3d[9]
-				vec1 = (crn9[1] - crn9[0] + crn9[2] - crn9[3]) * 0.5
-				len1 = np.linalg.norm(vec1)
-				c0 = c0 + vec1/len1 * 30
+				y_vec = (crn9[0] - crn9[1] + crn9[3] - crn9[2]) * 0.5
+				y_norm = np.linalg.norm(y_vec)
+				y_vec_norm = y_vec/y_norm
+				c0 = c0 + y_vec_norm * (-25)
 
 				# height is 8.5 cm
-				vec2 = (crn8[0] - crn8[3] + crn8[1] - crn8[2]) * 0.5
-				len2 = np.linalg.norm(vec2)
-				c0 = c0 + vec2/len2 * 85
+				# z_vec = (crn8[0] - crn8[3] + crn8[1] - crn8[2]) * 0.5
+				z_vec = (crn9[0] - crn9[3] + crn9[1] - crn9[2]) * 0.5
+				z_norm = np.linalg.norm(z_vec)
+				z_vec_norm = z_vec/z_norm
+				c0 = c0 + z_vec_norm * 85
+
+				emblo_pos.append(c0)
+				x_vecs.append(x_vec_norm)
+				y_vecs.append(y_vec_norm)
+				z_vecs.append(z_vec_norm)
+
+				R = np.array([[ 0.65830269, -0.75175884,  0.03868087],
+							  [ 0.16960551,  0.09806402, -0.98062094],
+							  [-0.73339725, -0.65210589, -0.19205825]])
 
 				pixel = k4a_float3_t((c0[0], c0[1], c0[2]))
 				c0_2d = device.calibration.convert_3d_to_2d(pixel, K4A_CALIBRATION_TYPE_DEPTH, K4A_CALIBRATION_TYPE_COLOR)
@@ -123,7 +160,8 @@ if __name__ == "__main__":
 		# cv2.imshow('Transformed Color Image',combined_image)
 		# double the image size for better visibility
 
-		color_image = cv2.resize(color_image, (0,0), fx=1.7, fy=1.7)
+		scale = 0.7
+		image = cv2.resize(image, (0,0), fx=scale, fy=scale)
 		cv2.imshow('Depth Image',depth_image)
 		cv2.imshow('Color Image',color_image)
 		cv2.imshow('ArUco Image',image)
@@ -131,6 +169,19 @@ if __name__ == "__main__":
 		# Press q key to stop
 		if cv2.waitKey(1) == ord('q'):
 			break
+
+
+emblo_pos_avg = np.average(emblo_pos, axis=0)
+x_vec_avg = np.average(x_vecs, axis=0)
+y_vec_avg = np.average(y_vecs, axis=0)
+z_vec_avg = np.average(z_vecs, axis=0)
+
+print("emblo_pos_avg: ", emblo_pos_avg)
+print("x_vec_avg: ", x_vec_avg)
+print("y_vec_avg: ", y_vec_avg)
+print("z_vec_avg: ", z_vec_avg)
+
+np.savez('kinect_calibration', emblo_pos=emblo_pos_avg, x_vec=x_vec_avg, y_vec=y_vec_avg, z_vec=z_vec_avg)
 
 #%%
 # from pykinect_azure import K4A_CALIBRATION_TYPE_COLOR, K4A_CALIBRATION_TYPE_DEPTH, k4a_float2_t, k4a_float3_t
