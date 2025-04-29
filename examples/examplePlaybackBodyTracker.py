@@ -4,7 +4,7 @@ import pykinect_azure as pykinect
 
 if __name__ == "__main__":
 
-	video_filename = "output.mkv"
+	video_filename = "calibration.mkv"
 
 	# Initialize the library, if the library is not found, add the library path as argument
 	pykinect.initialize_libraries(track_body=True)
@@ -51,9 +51,15 @@ if __name__ == "__main__":
 		# Draw the skeletons
 		combined_image = body_frame.draw_bodies(combined_image)
 
+		pelvis = body_frame.calibration.convert_3d_to_2d(body_frame.get_body_skeleton().joints[0].position, pykinect.K4A_CALIBRATION_TYPE_DEPTH, pykinect.K4A_CALIBRATION_TYPE_DEPTH)
+		combined_image = cv2.circle(combined_image, (int(pelvis.xy.x), int(pelvis.xy.y)), 5, (0, 255, 0), -1)
+
+		naval = body_frame.calibration.convert_3d_to_2d(body_frame.get_body_skeleton().joints[1].position, pykinect.K4A_CALIBRATION_TYPE_DEPTH, pykinect.K4A_CALIBRATION_TYPE_DEPTH)
+		combined_image = cv2.circle(combined_image, (int(naval.xy.x), int(naval.xy.y)), 5, (0, 0, 255), -1)
+
 		# Overlay body segmentation on depth image
 		cv2.imshow('Depth image with skeleton',combined_image)
 
 		# Press q key to stop
-		if cv2.waitKey(1) == ord('q'):
+		if cv2.waitKey(0) == ord('q'):
 			break
