@@ -26,7 +26,7 @@ def close_devices(devices):
 if __name__ == "__main__":
 
     # Initialize the library, if the library is not found, add the library path as argument
-    pykinect.initialize_libraries()
+    pykinect.initialize_libraries(track_body=True)
     
     # A list to store the devices
     devices = []
@@ -38,14 +38,16 @@ if __name__ == "__main__":
     for i in range(num_devices):
         device = pykinect.Device(i)
         device_config, device_type = device.device_configinit()
+        bodyTracker = None
         devices.append({
             'device': device,
+            'bodyTracker': bodyTracker,
             'type': device_type,
             'config': device_config,
             'index': i,
             'rgb_image': None})
         
-        cv2.namedWindow(f'Color Image_{i}',cv2.WINDOW_NORMAL)
+        # cv2.namedWindow(f'Color Image_{i}',cv2.WINDOW_NORMAL)
 
 	# Start cameras
     master_devices = [d for d in devices if d['type'] == 'Master']
@@ -75,20 +77,42 @@ if __name__ == "__main__":
         raise Exception(
             "NO Master device detected but detected Sub device, please check the sync cable!")
     
+    for i in range(num_devices):
+        devices[i]['bodyTracker'] = pykinect.start_body_tracker(devices[i]['device'])
+
     while True:
 
         for device_info in devices:
             device = device_info['device']
+            bodyTracker = device_info['bodyTracker']
             capture = device.update()
+            body_frame = bodyTracker.update(device)
             ret_color, color_image = capture.get_color_image()
             if not ret_color:
                 continue
 
+            ret_depth, depth_image = capture.get_colored_depth_image()
+            ret_body, body_image_color = body_frame.get_segmentation_image()
+
             device_info['rgb_image'] = color_image
+            device_info['depth_image'] = depth_image
+            device_info['body_image_color'] = body_image_color
+            device_info['body_frame'] = body_frame
 		
         for i in range(num_devices):          
             # Plot the image
-            cv2.imshow(f"Color Image_{i}",devices[i]['rgb_image'])
+
+            # Combine both images
+            depth_color_image = devices[i]['depth_image']
+            body_image_color = devices[i]['body_image_color']
+            body_frame = devices[i]['body_frame']
+            combined_image = cv2.addWeighted(depth_color_image, 0.6, body_image_color, 0.4, 0)
+
+            # Draw the skeletons
+            combined_image = body_frame.draw_bodies(combined_image)
+
+            cv2.imshow(f"Depth Image_{i}",combined_image)
+            cv2.imshow(f"Body Image_{i}",body_image_color)
 		
 		# Press q key to stop
         if cv2.waitKey(1) == ord('q'):
