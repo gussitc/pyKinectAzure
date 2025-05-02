@@ -1,6 +1,7 @@
 import cv2
-
+import numpy as np
 import pykinect_azure as pykinect
+from pykinect_azure.k4a._k4a import k4a_image_get_device_timestamp_usec
 
 if __name__ == "__main__":
 
@@ -10,8 +11,8 @@ if __name__ == "__main__":
 	pykinect.initialize_libraries(track_body=True)
 
 	# Start playback
-	playback0 = pykinect.start_playback('output_0.mkv')
-	playback1 = pykinect.start_playback('output_1.mkv')
+	playback0 = pykinect.start_playback('walking_0.mkv')
+	playback1 = pykinect.start_playback('walking_1.mkv')
 
 
 	# playback_config = playback0.get_record_configuration()
@@ -23,6 +24,12 @@ if __name__ == "__main__":
 	# Start body tracker
 	bodyTracker0 = pykinect.start_body_tracker(calibration=playback_calibration0)
 	bodyTracker1 = pykinect.start_body_tracker(calibration=playback_calibration1)
+
+	naval_pos0 = []
+	naval_pos1 = []
+
+	naval_confidence0 = []
+	naval_confidence1 = []
 
 	# cv2.namedWindow('Depth image with skeleton',cv2.WINDOW_NORMAL)
 	while True:
@@ -52,6 +59,9 @@ if __name__ == "__main__":
 		
 		if not ret_color or not ret_depth or not ret_seg:
 			continue
+
+		print(k4a_image_get_device_timestamp_usec(capture.get_color_image))
+		print(k4a_image_get_device_timestamp_usec(capture1.handle()))
 			
 		# Combine both images
 		combined_image = cv2.addWeighted(depth_color_image, 0.6, body_image_color, 0.4, 0)
@@ -66,6 +76,31 @@ if __name__ == "__main__":
 		# Draw the skeletons
 		combined_image1 = body_frame1.draw_bodies(combined_image1)
 
+		try:
+			naval_3d = body_frame.get_body_skeleton().joints[1].position
+			naval_3d_confidence = body_frame.get_body_skeleton().joints[1].confidence_level
+			naval_2d = body_frame.calibration.convert_3d_to_2d(naval_3d, pykinect.K4A_CALIBRATION_TYPE_DEPTH, pykinect.K4A_CALIBRATION_TYPE_DEPTH)
+			combined_image = cv2.circle(combined_image, (int(naval_2d.xy.x), int(naval_2d.xy.y)), 5, (0, 0, 255), -1)
+			naval_3d = np.array([naval_3d.xyz.x, naval_3d.xyz.y, naval_3d.xyz.z])
+		except:
+			naval_3d = [0, 0, 0]
+			naval_3d_confidence = 0
+
+		try:
+			naval_3d1 = body_frame1.get_body_skeleton().joints[1].position
+			naval_3d_confidence1 = body_frame1.get_body_skeleton().joints[1].confidence_level
+			naval_2d1 = body_frame1.calibration.convert_3d_to_2d(naval_3d1, pykinect.K4A_CALIBRATION_TYPE_DEPTH, pykinect.K4A_CALIBRATION_TYPE_DEPTH)
+			combined_image1 = cv2.circle(combined_image1, (int(naval_2d1.xy.x), int(naval_2d1.xy.y)), 5, (0, 0, 255), -1)
+			naval_3d1 = np.array([naval_3d1.xyz.x, naval_3d1.xyz.y, naval_3d1.xyz.z])
+		except:
+			naval_3d1 = [0, 0, 0]
+			naval_3d_confidence1 = 0
+
+		naval_pos0.append(naval_3d)
+		naval_pos1.append(naval_3d1)
+		naval_confidence0.append(naval_3d_confidence)
+		naval_confidence1.append(naval_3d_confidence1)
+
 		# Overlay body segmentation on depth image
 		cv2.imshow('Depth image with skeleton',combined_image)
 		cv2.imshow('Depth image with skeleton1',combined_image1)
@@ -73,3 +108,6 @@ if __name__ == "__main__":
 		# Press q key to stop
 		if cv2.waitKey(1) == ord('q'):
 			break
+
+	# Save the data to a file
+	np.savez('kinect_position', cam0=naval_pos0, cam1=naval_pos1, cam0_confidence=naval_confidence0, cam1_confidence=naval_confidence1)
