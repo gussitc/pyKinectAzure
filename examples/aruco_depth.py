@@ -8,15 +8,16 @@ from rotation import closest_rotation_matrix
 
 USE_PLAYBACK = False
 
-def get_aruco_box_frame(x_face, y_face, y_dist, z_dist, y_mirror=False):
+def get_aruco_box_frame(x_face, y_face, y_dist, z_dist, x_mirror=False, y_mirror=False):
 
 	# in the middle of the marker 8
 	x_vec = (x_face[1] - x_face[0] + x_face[2] - x_face[3]) * 0.5
 	x_norm = np.linalg.norm(x_vec)
 	x_vec_norm = x_vec/x_norm
 	c0 = x_face[0] + x_vec * 0.5
+	if x_mirror:
+		x_vec_norm = -x_vec_norm
 
-	# depth is 2.5 cm
 	y_vec = (y_face[0] - y_face[1] + y_face[3] - y_face[2]) * 0.5
 	if y_mirror:
 		y_vec = -y_vec
@@ -24,7 +25,6 @@ def get_aruco_box_frame(x_face, y_face, y_dist, z_dist, y_mirror=False):
 	y_vec_norm = y_vec/y_norm
 	c0 = c0 + y_vec_norm * y_dist
 
-	# height is 8.5 cm
 	z_vec = (x_face[0] - x_face[3] + x_face[1] - x_face[2] + y_face[0] - y_face[3] + y_face[1] - y_face[2]) * 0.25
 	z_norm = np.linalg.norm(z_vec)
 	z_vec_norm = z_vec/z_norm
@@ -126,16 +126,38 @@ if __name__ == "__main__":
 				cv2.drawKeypoints(color_image, corner_dict_2d[9], color_image, (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
 			c0 = None
+			x_face = None
+			y_face = None
+			y_length = 150
+			y_offset = 25
+			z_dist = 85
 			if 8 in corner_dict_3d and 9 in corner_dict_3d:
-				y_dist = -25
-				z_dist = 85
-
-				c0, x_vec_norm, y_vec_norm, z_vec_norm = get_aruco_box_frame(corner_dict_3d[8], corner_dict_3d[9], y_dist, z_dist)
+				y_dist = 0 - y_offset
+				x_face = corner_dict_3d[8]
+				y_face = corner_dict_3d[9]
+				y_mirror = False
+				x_mirror = False
 			elif 8 in corner_dict_3d and 11 in corner_dict_3d:
-				y_dist = -25
-				z_dist = 85
+				y_dist = 0 - y_offset
+				x_face = corner_dict_3d[8]
+				y_face = corner_dict_3d[11]
+				x_mirror = False
+				y_mirror = True
+			elif 10 in corner_dict_3d and 11 in corner_dict_3d:
+				y_dist = y_length - y_offset
+				x_face = corner_dict_3d[10]
+				y_face = corner_dict_3d[11]
+				x_mirror = True
+				y_mirror = True
+			elif 10 in corner_dict_3d and 9 in corner_dict_3d:
+				y_dist = y_length - y_offset
+				x_face = corner_dict_3d[10]
+				y_face = corner_dict_3d[9]
+				x_mirror = True
+				y_mirror = False
 
-				c0, x_vec_norm, y_vec_norm, z_vec_norm = get_aruco_box_frame(corner_dict_3d[8], corner_dict_3d[11], y_dist, z_dist, y_mirror=True)
+			if x_face is not None and y_face is not None:
+				c0, x_vec_norm, y_vec_norm, z_vec_norm = get_aruco_box_frame(x_face, y_face, y_dist, z_dist, x_mirror, y_mirror)
 
 			if c0 is not None:
 				emblo_pos.append(c0)
@@ -144,7 +166,11 @@ if __name__ == "__main__":
 				z_vecs.append(z_vec_norm)
 
 				R = np.array([x_vec_norm, y_vec_norm, z_vec_norm]).T
-				R = closest_rotation_matrix(R)
+				try:
+					R_SVD = closest_rotation_matrix(R)
+					R = R_SVD
+				except:
+					print("SVD did not converge")
 
 				s = 150 # 20 cm
 
