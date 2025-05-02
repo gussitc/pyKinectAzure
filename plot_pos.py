@@ -7,10 +7,12 @@ cam0_raw = data['cam0']
 cam1_raw = data['cam1']
 cam0_confidence = data['cam0_confidence']
 cam1_confidence = data['cam1_confidence']
+timestamp0 = data['timestamp0']
+timestamp1 = data['timestamp1']
 
 #%%
 
-START_FRAME = 50
+START_FRAME = 0
 
 cam0 = cam0_raw[START_FRAME:]
 cam1 = cam1_raw[START_FRAME:]
@@ -19,24 +21,24 @@ cam1 = cam1_raw[START_FRAME:]
 
 # plot x y and z in three subplots
 fig, axs = plt.subplots(3, 1, figsize=(10, 10))
-axs[0].plot(cam0[:, 0], label='cam0 x')
-axs[0].plot(cam1[:, 0], label='cam1 x')
+axs[0].plot(timestamp0, cam0[:, 0], label='cam0 x')
+axs[0].plot(timestamp1, cam1[:, 0], label='cam1 x')
 axs[0].set_title('X axis')
 axs[0].set_xlabel('Frame')
 axs[0].set_ylabel('X position')
 axs[0].legend()
 axs[0].grid()
 
-axs[1].plot(cam0[:, 1], label='cam0 y')
-axs[1].plot(cam1[:, 1], label='cam1 y')
+axs[1].plot(timestamp0, cam0[:, 1], label='cam0 y')
+axs[1].plot(timestamp1, cam1[:, 1], label='cam1 y')
 axs[1].set_title('Y axis')
 axs[1].set_xlabel('Frame')
 axs[1].set_ylabel('Y position')
 axs[1].legend()
 axs[1].grid()
 
-axs[2].plot(cam0[:, 2], label='cam0 z')
-axs[2].plot(cam1[:, 2], label='cam1 z')
+axs[2].plot(timestamp0, cam0[:, 2], label='cam0 z')
+axs[2].plot(timestamp1, cam1[:, 2], label='cam1 z')
 axs[2].set_title('Z axis')
 axs[2].set_xlabel('Frame')
 axs[2].set_ylabel('Z position')

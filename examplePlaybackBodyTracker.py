@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 import pykinect_azure as pykinect
-from pykinect_azure.k4a._k4a import k4a_image_get_device_timestamp_usec
+import pykinect_azure.k4a._k4a as _k4a
 
 if __name__ == "__main__":
 
@@ -30,6 +30,9 @@ if __name__ == "__main__":
 
 	naval_confidence0 = []
 	naval_confidence1 = []
+
+	timestamp0 = []
+	timestamp1 = []
 
 	# cv2.namedWindow('Depth image with skeleton',cv2.WINDOW_NORMAL)
 	while True:
@@ -60,8 +63,8 @@ if __name__ == "__main__":
 		if not ret_color or not ret_depth or not ret_seg:
 			continue
 
-		print(k4a_image_get_device_timestamp_usec(capture.get_color_image))
-		print(k4a_image_get_device_timestamp_usec(capture1.handle()))
+		device_timestamp = _k4a.k4a_image_get_device_timestamp_usec(_k4a.k4a_capture_get_depth_image(capture.handle()))
+		device_timestamp1 = _k4a.k4a_image_get_device_timestamp_usec(_k4a.k4a_capture_get_depth_image(capture1.handle()))
 			
 		# Combine both images
 		combined_image = cv2.addWeighted(depth_color_image, 0.6, body_image_color, 0.4, 0)
@@ -100,6 +103,8 @@ if __name__ == "__main__":
 		naval_pos1.append(naval_3d1)
 		naval_confidence0.append(naval_3d_confidence)
 		naval_confidence1.append(naval_3d_confidence1)
+		timestamp0.append(device_timestamp)
+		timestamp1.append(device_timestamp1)
 
 		# Overlay body segmentation on depth image
 		cv2.imshow('Depth image with skeleton',combined_image)
@@ -110,4 +115,4 @@ if __name__ == "__main__":
 			break
 
 	# Save the data to a file
-	np.savez('kinect_position', cam0=naval_pos0, cam1=naval_pos1, cam0_confidence=naval_confidence0, cam1_confidence=naval_confidence1)
+	np.savez('kinect_position', cam0=naval_pos0, cam1=naval_pos1, cam0_confidence=naval_confidence0, cam1_confidence=naval_confidence1, timestamp0=timestamp0, timestamp1=timestamp1)
