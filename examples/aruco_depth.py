@@ -93,14 +93,22 @@ def get_reference_frame(ids, corners):
 		return c0, x_vec_norm, y_vec_norm, z_vec_norm, corner_dict_2d, corner_dict_3d
 	return None, None, None, None, None, None
 
-# def draw_aruco_box():
+def draw_aruco_box(image, ids, corners, corner_dict_2d):
+	cv2.aruco.drawDetectedMarkers(image, corners, ids)
 
-# 	cv2.aruco.drawDetectedMarkers(image, corners, ids)
+	if corner_dict_2d is None:
+		return image
+
+	if 8 in corner_dict_2d:
+		cv2.drawKeypoints(color_image, corner_dict_2d[8], color_image, (0, 255, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+	if 9 in corner_dict_2d:
+		cv2.drawKeypoints(color_image, corner_dict_2d[9], color_image, (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+	if 10 in corner_dict_2d:
+		cv2.drawKeypoints(color_image, corner_dict_2d[10], color_image, (0, 0, 255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+	if 11 in corner_dict_2d:
+		cv2.drawKeypoints(color_image, corner_dict_2d[11], color_image, (255, 255, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 	
-# 	if 8 in corner_dict_2d:
-# 		cv2.drawKeypoints(color_image, corner_dict_2d[8], color_image, (0, 255, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-# 	if 9 in corner_dict_2d:
-# 		cv2.drawKeypoints(color_image, corner_dict_2d[9], color_image, (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+	return image
 
 def draw_coordinate_frame(image, c0, x_vec_norm, y_vec_norm, z_vec_norm):
 	R = np.array([x_vec_norm, y_vec_norm, z_vec_norm]).T
@@ -146,16 +154,12 @@ def aruco_detector(image):
 	# ret, depth_image = capture.get_depth_image()
 
 	c0, x_vec_norm, y_vec_norm, z_vec_norm, corner_dict_2d, corner_dict_3d = get_reference_frame(ids, corners)
-
-	emblo_pos.append(c0)
-	x_vecs.append(x_vec_norm)
-	y_vecs.append(y_vec_norm)
-	z_vecs.append(z_vec_norm)
+	image = draw_aruco_box(image, ids, corners, corner_dict_2d)
 
 	if c0 is not None:
 		image = draw_coordinate_frame(image, c0, x_vec_norm, y_vec_norm, z_vec_norm)
 	
-	return image
+	return image, c0, x_vec_norm, y_vec_norm, z_vec_norm
 
 
 if __name__ == "__main__":
@@ -220,17 +224,15 @@ if __name__ == "__main__":
 
 		_, image = capture.get_color_image()
 		image = image[:,:,:3]
-		image = aruco_detector(image)
+		image, c0, x_vec_norm, y_vec_norm, z_vec_norm = aruco_detector(image)
+
+		emblo_pos.append(c0)
+		x_vecs.append(x_vec_norm)
+		y_vecs.append(y_vec_norm)
+		z_vecs.append(z_vec_norm)
 
 		# Get the colored depth
 		ret, depth_image = capture.get_colored_depth_image()
-
-		# Combine both images
-		# combined_image = cv2.addWeighted(color_image[:,:,:3], 0.7, depth_image, 0.3, 0)
-
-		# Overlay body segmentation on depth image
-		# cv2.imshow('Transformed Color Image',combined_image)
-		# double the image size for better visibility
 
 		scale = 0.7
 		image = cv2.resize(image, (0,0), fx=scale, fy=scale)
