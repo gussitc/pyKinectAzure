@@ -8,6 +8,30 @@ from rotation import closest_rotation_matrix
 
 USE_PLAYBACK = False
 
+def get_aruco_box_frame(x_face, y_face, y_dist, z_dist, y_mirror=False):
+
+	# in the middle of the marker 8
+	x_vec = (x_face[1] - x_face[0] + x_face[2] - x_face[3]) * 0.5
+	x_norm = np.linalg.norm(x_vec)
+	x_vec_norm = x_vec/x_norm
+	c0 = x_face[0] + x_vec * 0.5
+
+	# depth is 2.5 cm
+	y_vec = (y_face[0] - y_face[1] + y_face[3] - y_face[2]) * 0.5
+	if y_mirror:
+		y_vec = -y_vec
+	y_norm = np.linalg.norm(y_vec)
+	y_vec_norm = y_vec/y_norm
+	c0 = c0 + y_vec_norm * y_dist
+
+	# height is 8.5 cm
+	z_vec = (x_face[0] - x_face[3] + x_face[1] - x_face[2] + y_face[0] - y_face[3] + y_face[1] - y_face[2]) * 0.25
+	z_norm = np.linalg.norm(z_vec)
+	z_vec_norm = z_vec/z_norm
+	c0 = c0 + z_vec_norm * z_dist
+
+	return c0, x_vec_norm, y_vec_norm, z_vec_norm
+
 if __name__ == "__main__":
 # if True:
 
@@ -28,6 +52,7 @@ if __name__ == "__main__":
 		# Modify camera configuration
 		device_config = pykinect.default_configuration
 		device_config.color_format = pykinect.K4A_IMAGE_FORMAT_COLOR_BGRA32
+		# device_config.color_resolution = pykinect.K4A_COLOR_RESOLUTION_2160P
 		device_config.color_resolution = pykinect.K4A_COLOR_RESOLUTION_1080P
 		device_config.depth_mode = pykinect.K4A_DEPTH_MODE_WFOV_2X2BINNED
 		# print(device_config)
@@ -100,27 +125,19 @@ if __name__ == "__main__":
 			if 9 in corner_dict_2d:
 				cv2.drawKeypoints(color_image, corner_dict_2d[9], color_image, (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
+			c0 = None
 			if 8 in corner_dict_3d and 9 in corner_dict_3d:
-				# in the middle of the marker 8
-				crn8 = corner_dict_3d[8]
-				x_vec = (crn8[1] - crn8[0] + crn8[2] - crn8[3]) * 0.5
-				x_norm = np.linalg.norm(x_vec)
-				x_vec_norm = x_vec/x_norm
-				c0 = crn8[0] + x_vec * 0.5
+				y_dist = -25
+				z_dist = 85
 
-				# depth is 2.5 cm
-				crn9 = corner_dict_3d[9]
-				y_vec = (crn9[0] - crn9[1] + crn9[3] - crn9[2]) * 0.5
-				y_norm = np.linalg.norm(y_vec)
-				y_vec_norm = y_vec/y_norm
-				c0 = c0 + y_vec_norm * (-25)
+				c0, x_vec_norm, y_vec_norm, z_vec_norm = get_aruco_box_frame(corner_dict_3d[8], corner_dict_3d[9], y_dist, z_dist)
+			elif 8 in corner_dict_3d and 11 in corner_dict_3d:
+				y_dist = -25
+				z_dist = 85
 
-				# height is 8.5 cm
-				z_vec = (crn8[0] - crn8[3] + crn8[1] - crn8[2] + crn9[0] - crn9[3] + crn9[1] - crn9[2]) * 0.25
-				z_norm = np.linalg.norm(z_vec)
-				z_vec_norm = z_vec/z_norm
-				c0 = c0 + z_vec_norm * 85
+				c0, x_vec_norm, y_vec_norm, z_vec_norm = get_aruco_box_frame(corner_dict_3d[8], corner_dict_3d[11], y_dist, z_dist, y_mirror=True)
 
+			if c0 is not None:
 				emblo_pos.append(c0)
 				x_vecs.append(x_vec_norm)
 				y_vecs.append(y_vec_norm)
