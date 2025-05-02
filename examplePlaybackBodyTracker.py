@@ -34,6 +34,9 @@ if __name__ == "__main__":
 	timestamp0 = []
 	timestamp1 = []
 
+	is_track0 = []
+	is_track1 = []
+
 	# cv2.namedWindow('Depth image with skeleton',cv2.WINDOW_NORMAL)
 	while True:
 
@@ -85,9 +88,11 @@ if __name__ == "__main__":
 			naval_2d = body_frame.calibration.convert_3d_to_2d(naval_3d, pykinect.K4A_CALIBRATION_TYPE_DEPTH, pykinect.K4A_CALIBRATION_TYPE_DEPTH)
 			combined_image = cv2.circle(combined_image, (int(naval_2d.xy.x), int(naval_2d.xy.y)), 5, (0, 0, 255), -1)
 			naval_3d = np.array([naval_3d.xyz.x, naval_3d.xyz.y, naval_3d.xyz.z])
+			track0 = True
 		except:
 			naval_3d = [0, 0, 0]
 			naval_3d_confidence = 0
+			track0 = False
 
 		try:
 			naval_3d1 = body_frame1.get_body_skeleton().joints[1].position
@@ -95,9 +100,11 @@ if __name__ == "__main__":
 			naval_2d1 = body_frame1.calibration.convert_3d_to_2d(naval_3d1, pykinect.K4A_CALIBRATION_TYPE_DEPTH, pykinect.K4A_CALIBRATION_TYPE_DEPTH)
 			combined_image1 = cv2.circle(combined_image1, (int(naval_2d1.xy.x), int(naval_2d1.xy.y)), 5, (0, 0, 255), -1)
 			naval_3d1 = np.array([naval_3d1.xyz.x, naval_3d1.xyz.y, naval_3d1.xyz.z])
+			track1 = True
 		except:
 			naval_3d1 = [0, 0, 0]
 			naval_3d_confidence1 = 0
+			track1 = False
 
 		naval_pos0.append(naval_3d)
 		naval_pos1.append(naval_3d1)
@@ -105,6 +112,8 @@ if __name__ == "__main__":
 		naval_confidence1.append(naval_3d_confidence1)
 		timestamp0.append(device_timestamp)
 		timestamp1.append(device_timestamp1)
+		is_track0.append(track0)
+		is_track1.append(track1)
 
 		# Overlay body segmentation on depth image
 		cv2.imshow('Depth image with skeleton',combined_image)
@@ -115,4 +124,7 @@ if __name__ == "__main__":
 			break
 
 	# Save the data to a file
-	np.savez('kinect_position', cam0=naval_pos0, cam1=naval_pos1, cam0_confidence=naval_confidence0, cam1_confidence=naval_confidence1, timestamp0=timestamp0, timestamp1=timestamp1)
+	np.savez('kinect_position', cam0=naval_pos0, cam1=naval_pos1,
+		  cam0_confidence=naval_confidence0, cam1_confidence=naval_confidence1,
+		  timestamp0=timestamp0, timestamp1=timestamp1,
+		  is_track0=is_track0, is_track1=is_track1)
