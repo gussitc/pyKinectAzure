@@ -9,11 +9,13 @@ import pykinect_azure as pykinect
 import cv2
 from aruco_detector import ArucoDetector
 
+# recording = True
+
 # Start single camera
 def start_camera(device_info):
     
     device = device_info['device']
-    device.start_cameras(device_info['config'])
+    device.start(device_info['config'], record=True, record_filepath=f"output_{device_info['index']}.mkv")
     print(
         f"Successfully started camera for device {device_info['index']} ({device_info['type']})")
     
