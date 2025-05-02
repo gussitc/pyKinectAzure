@@ -4,8 +4,9 @@ import pykinect_azure as pykinect
 import numpy as np
 from pykinect_azure import K4A_CALIBRATION_TYPE_COLOR, K4A_CALIBRATION_TYPE_DEPTH, k4a_float2_t, k4a_float3_t
 import matplotlib.pyplot as plt
+from rotation import closest_rotation_matrix
 
-USE_PLAYBACK = True
+USE_PLAYBACK = False
 
 if __name__ == "__main__":
 # if True:
@@ -115,8 +116,7 @@ if __name__ == "__main__":
 				c0 = c0 + y_vec_norm * (-25)
 
 				# height is 8.5 cm
-				# z_vec = (crn8[0] - crn8[3] + crn8[1] - crn8[2]) * 0.5
-				z_vec = (crn9[0] - crn9[3] + crn9[1] - crn9[2]) * 0.5
+				z_vec = (crn8[0] - crn8[3] + crn8[1] - crn8[2] + crn9[0] - crn9[3] + crn9[1] - crn9[2]) * 0.25
 				z_norm = np.linalg.norm(z_vec)
 				z_vec_norm = z_vec/z_norm
 				c0 = c0 + z_vec_norm * 85
@@ -126,14 +126,10 @@ if __name__ == "__main__":
 				y_vecs.append(y_vec_norm)
 				z_vecs.append(z_vec_norm)
 
-				R = np.array([[ 0.65830269, -0.75175884,  0.03868087],
-							  [ 0.16960551,  0.09806402, -0.98062094],
-							  [-0.73339725, -0.65210589, -0.19205825]])
+				R = np.array([x_vec_norm, y_vec_norm, z_vec_norm]).T
+				R = closest_rotation_matrix(R)
 
-				# emblo pos in room coordinates
-				c_r = np.array([1.336217 , 2.7460349, 1.1113696])
-
-				s = 200 # 20 cm
+				s = 150 # 20 cm
 
 				# coordinate frame in emblo coordinates
 				p0_e = np.array([s, 0, 0])
@@ -189,21 +185,21 @@ if __name__ == "__main__":
 		cv2.imshow('ArUco Image',image)
 
 		# Press q key to stop
-		if cv2.waitKey(0) == ord('q'):
+		if cv2.waitKey(1) == ord('q'):
 			break
 
+if USE_PLAYBACK:
+	emblo_pos_avg = np.average(emblo_pos, axis=0)
+	x_vec_avg = np.average(x_vecs, axis=0)
+	y_vec_avg = np.average(y_vecs, axis=0)
+	z_vec_avg = np.average(z_vecs, axis=0)
 
-emblo_pos_avg = np.average(emblo_pos, axis=0)
-x_vec_avg = np.average(x_vecs, axis=0)
-y_vec_avg = np.average(y_vecs, axis=0)
-z_vec_avg = np.average(z_vecs, axis=0)
+	print("emblo_pos_avg: ", emblo_pos_avg)
+	print("x_vec_avg: ", x_vec_avg)
+	print("y_vec_avg: ", y_vec_avg)
+	print("z_vec_avg: ", z_vec_avg)
 
-print("emblo_pos_avg: ", emblo_pos_avg)
-print("x_vec_avg: ", x_vec_avg)
-print("y_vec_avg: ", y_vec_avg)
-print("z_vec_avg: ", z_vec_avg)
-
-np.savez('kinect_calibration', emblo_pos=emblo_pos_avg, x_vec=x_vec_avg, y_vec=y_vec_avg, z_vec=z_vec_avg)
+	np.savez('kinect_calibration', emblo_pos=emblo_pos_avg, x_vec=x_vec_avg, y_vec=y_vec_avg, z_vec=z_vec_avg)
 
 #%%
 # from pykinect_azure import K4A_CALIBRATION_TYPE_COLOR, K4A_CALIBRATION_TYPE_DEPTH, k4a_float2_t, k4a_float3_t
