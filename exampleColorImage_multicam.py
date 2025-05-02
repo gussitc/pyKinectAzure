@@ -7,6 +7,7 @@ Created on Tue Sep 17 13:29:09 2024
 
 import pykinect_azure as pykinect
 import cv2
+from aruco_detector import ArucoDetector
 
 # Start single camera
 def start_camera(device_info):
@@ -43,7 +44,8 @@ if __name__ == "__main__":
             'type': device_type,
             'config': device_config,
             'index': i,
-            'rgb_image': None})
+            'rgb_image': None,
+            'depth_image': None})
         
         cv2.namedWindow(f'Color Image_{i}',cv2.WINDOW_NORMAL)
 
@@ -75,20 +77,27 @@ if __name__ == "__main__":
         raise Exception(
             "NO Master device detected but detected Sub device, please check the sync cable!")
     
+    aruco_detector = ArucoDetector()
+
     while True:
 
         for device_info in devices:
             device = device_info['device']
             capture = device.update()
             ret_color, color_image = capture.get_color_image()
+            ret_depth, depth_image = capture.get_transformed_depth_image()
             if not ret_color:
                 continue
 
             device_info['rgb_image'] = color_image
+            device_info['depth_image'] = depth_image
 		
         for i in range(num_devices):          
             # Plot the image
-            cv2.imshow(f"Color Image_{i}",devices[i]['rgb_image'])
+            device_info = devices[i]
+            image, _, _, _, _ = aruco_detector.detect(device_info['device'].calibration, device_info['rgb_image'], device_info['depth_image'])
+
+            cv2.imshow(f"Color Image_{i}", image)
 		
 		# Press q key to stop
         if cv2.waitKey(1) == ord('q'):
