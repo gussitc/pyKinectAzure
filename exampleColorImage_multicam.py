@@ -6,6 +6,7 @@ Created on Tue Sep 17 13:29:09 2024
 """
 
 import pykinect_azure as pykinect
+from pykinect_azure.k4a import _k4a
 import cv2
 
 # Start single camera
@@ -38,6 +39,7 @@ if __name__ == "__main__":
     for i in range(num_devices):
         device = pykinect.Device(i)
         device_config, device_type = device.device_configinit()
+        device_config.depth_mode = _k4a.K4A_DEPTH_MODE_WFOV_2X2BINNED
         bodyTracker = None
         devices.append({
             'device': device,
