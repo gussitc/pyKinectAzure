@@ -4,6 +4,12 @@ import matplotlib.pyplot as plt
 from rotation import closest_rotation_matrix
 
 #%%
+def reject_outliers(data, m = 2.):
+    d = np.abs(data - np.mean(data, axis=0))
+    d_norm = np.linalg.norm(d, axis=1)
+    outlier_idxs = np.where(d_norm > m * np.mean(d_norm))
+    return np.delete(data, outlier_idxs, axis=0)
+
 calibration = np.load('kinect_calibration.npz')
 x_vec = calibration['x_vec']
 y_vec = calibration['y_vec']
@@ -14,6 +20,17 @@ z_vec1 = calibration['z_vec1']
 
 c0 = calibration['c0']
 c1 = calibration['c1']
+
+x_vec = reject_outliers(x_vec)
+y_vec = reject_outliers(y_vec)
+z_vec = reject_outliers(z_vec)
+
+x_vec1 = reject_outliers(x_vec1)
+y_vec1 = reject_outliers(y_vec1)
+z_vec1 = reject_outliers(z_vec1)
+
+c0 = reject_outliers(c0)
+c1 = reject_outliers(c1)
 
 #%%
 
@@ -103,21 +120,21 @@ axs[2].set_ylabel('Z position')
 axs[2].legend()
 axs[2].grid()
 
-# axs[3].plot(cam0_confidence, label='cam0 confidence')
-# axs[3].plot(cam1_confidence, label='cam1 confidence')
-# axs[3].set_title('Confidence')
-# axs[3].set_xlabel('Frame')
-# axs[3].set_ylabel('Confidence')
-# axs[3].legend()
-# axs[3].grid()
-
-axs[3].plot(timestamp0, is_track0, label='cam0 is_track')
-axs[3].plot(timestamp1, is_track1, label='cam1 is_track')
-axs[3].set_title('is_track')
+axs[3].plot(cam0_confidence, label='cam0 confidence')
+axs[3].plot(cam1_confidence, label='cam1 confidence')
+axs[3].set_title('Confidence')
 axs[3].set_xlabel('Frame')
-axs[3].set_ylabel('is_track')
+axs[3].set_ylabel('Confidence')
 axs[3].legend()
 axs[3].grid()
+
+# axs[3].plot(timestamp0, is_track0, label='cam0 is_track')
+# axs[3].plot(timestamp1, is_track1, label='cam1 is_track')
+# axs[3].set_title('is_track')
+# axs[3].set_xlabel('Frame')
+# axs[3].set_ylabel('is_track')
+# axs[3].legend()
+# axs[3].grid()
 
 plt.tight_layout()
 plt.show()
