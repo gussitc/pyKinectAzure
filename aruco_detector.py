@@ -118,9 +118,12 @@ class ArucoDetector:
 		if not np.isnan(c0_2d.xy.x) and not np.isnan(c0_2d.xy.y):
 			image = cv2.circle(image, (int(c0_2d.xy.x), int(c0_2d.xy.y)), 10, (0, 255, 0), -1)
 
-			image = cv2.line(image, (int(p0_2d.xy.x), int(p0_2d.xy.y)), (int(c0_2d.xy.x), int(c0_2d.xy.y)), (0, 0, 255), 2)
-			image = cv2.line(image, (int(p1_2d.xy.x), int(p1_2d.xy.y)), (int(c0_2d.xy.x), int(c0_2d.xy.y)), (0, 255, 0), 2)
-			image = cv2.line(image, (int(p2_2d.xy.x), int(p2_2d.xy.y)), (int(c0_2d.xy.x), int(c0_2d.xy.y)), (255, 0, 0), 2)
+			try:
+				image = cv2.line(image, (int(p0_2d.xy.x), int(p0_2d.xy.y)), (int(c0_2d.xy.x), int(c0_2d.xy.y)), (0, 0, 255), 2)
+				image = cv2.line(image, (int(p1_2d.xy.x), int(p1_2d.xy.y)), (int(c0_2d.xy.x), int(c0_2d.xy.y)), (0, 255, 0), 2)
+				image = cv2.line(image, (int(p2_2d.xy.x), int(p2_2d.xy.y)), (int(c0_2d.xy.x), int(c0_2d.xy.y)), (255, 0, 0), 2)
+			except:
+				pass
 		return image
 
 
@@ -133,7 +136,7 @@ class ArucoDetector:
 
 		cv2.aruco.drawDetectedMarkers(image, corners, ids)
 
-		if c0 is not None:
+		if c0 is not None and not np.isnan(c0[0]):
 			image = self.draw_coordinate_frame(image, calibration, c0, x_vec_norm, y_vec_norm, z_vec_norm)
 		
 		return image, c0, x_vec_norm, y_vec_norm, z_vec_norm
