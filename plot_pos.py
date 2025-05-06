@@ -32,6 +32,9 @@ z_vec1 = reject_outliers(z_vec1)
 c0 = reject_outliers(c0)
 c1 = reject_outliers(c1)
 
+timestamps = np.loadtxt('timestamps.txt')
+last_timestamp = timestamps[-1]
+
 #%%
 
 data = np.load('kinect_position.npz')
@@ -43,6 +46,12 @@ timestamp0 = data['timestamp0']
 timestamp1 = data['timestamp1']
 is_track0 = data['is_track0']
 is_track1 = data['is_track1']
+
+first_timestamp0 = last_timestamp // 1000 - (timestamp0[-1] - timestamp0[0])
+timestamp0 = first_timestamp0 + timestamp0
+
+first_timestamp1 = last_timestamp // 1000 - (timestamp1[-1] - timestamp1[0])
+timestamp1 = first_timestamp1 + timestamp1
 
 #%%
 
@@ -68,8 +77,17 @@ R1_SVD = closest_rotation_matrix(R1)
 
 #%%
 
+# emblo coordinates seen by R10 sensor
+c0_room = np.array([[1.846738, 2.1159978, 1.4999355]]).T * 1000
+
 cam0_room = R_SVD.T @ (cam0 - c0_mean).T
 cam1_room = R1_SVD.T @ (cam1 - c1_mean).T
+
+cam0_room = cam0_room + c0_room
+cam1_room = cam1_room + c0_room
+
+cam0_room /= 1000
+cam1_room /= 1000
 
 #%%
 cam0 = cam0_room.T
@@ -92,51 +110,98 @@ for i in range(len(cam0)):
         # TODO: handle the case when neither camera has track
         pass
 
+
+#%%
+trajectory = np.loadtxt("trajectory_radar.txt")
+first_timestamp_ns = 1746444770635787611
+last_timestamp_ns = 1746444822292284255
+FPS = 17
+
+print((last_timestamp_ns - first_timestamp_ns) / 1e9)
+print(trajectory.shape[0] / FPS )
+
+radar_timestamps = np.arange(0, trajectory.shape[0]) * (1/FPS) * 1e6 + first_timestamp_ns // 1000
+print(radar_timestamps.shape)
+print(radar_timestamps[0])
+
+start_idx = get_closest_timestamp_index(radar_timestamps, timestamp0[0])
+stop_idx = get_closest_timestamp_index(radar_timestamps, timestamp0[-1])
+trajectory = trajectory[start_idx:stop_idx]
+radar_timestamps = radar_timestamps[start_idx:stop_idx]
+
+#%%
+radar_timestamps = (radar_timestamps - radar_timestamps[0]) / 1e6
+ref_timestamp = timestamp0[0]
+timestamp0 = (timestamp0 - ref_timestamp) / 1e6
+timestamp1 = (timestamp1 - ref_timestamp) / 1e6
+
 #%%
 
 # plot x y and z in three subplots
 fig, axs = plt.subplots(4, 1, figsize=(10, 10))
 axs[0].plot(timestamp0, cam0[:, 0], label='cam0 x')
 axs[0].plot(timestamp1, cam1[:, 0], label='cam1 x')
-axs[0].set_title('X axis')
-axs[0].set_xlabel('Frame')
-axs[0].set_ylabel('X position')
+axs[0].plot(radar_timestamps, trajectory[:, 0], label='radar x')
+# axs[0].set_title('X axis')
+# axs[0].set_xlabel('Time [s]')
+axs[0].set_ylabel('X pos [m]')
 axs[0].legend()
 axs[0].grid()
 
 axs[1].plot(timestamp0, cam0[:, 1], label='cam0 y')
 axs[1].plot(timestamp1, cam1[:, 1], label='cam1 y')
-axs[1].set_title('Y axis')
-axs[1].set_xlabel('Frame')
-axs[1].set_ylabel('Y position')
+axs[1].plot(radar_timestamps, trajectory[:, 1], label='radar y')
+# axs[1].set_title('Y axis')
+# axs[1].set_xlabel('Time [s]')
+axs[1].set_ylabel('Y pos [m]')
 axs[1].legend()
 axs[1].grid()
 
 axs[2].plot(timestamp0, cam0[:, 2], label='cam0 z')
 axs[2].plot(timestamp1, cam1[:, 2], label='cam1 z')
-axs[2].set_title('Z axis')
-axs[2].set_xlabel('Frame')
-axs[2].set_ylabel('Z position')
+axs[2].plot(radar_timestamps, trajectory[:, 2], label='radar z')
+# axs[2].set_title('Z axis')
+# axs[2].set_xlabel('Time [s]')
+axs[2].set_ylabel('Z pos [m]')
 axs[2].legend()
 axs[2].grid()
 
-axs[3].plot(cam0_confidence, label='cam0 confidence')
-axs[3].plot(cam1_confidence, label='cam1 confidence')
-axs[3].set_title('Confidence')
-axs[3].set_xlabel('Frame')
-axs[3].set_ylabel('Confidence')
-axs[3].legend()
-axs[3].grid()
-
-# axs[3].plot(timestamp0, is_track0, label='cam0 is_track')
-# axs[3].plot(timestamp1, is_track1, label='cam1 is_track')
-# axs[3].set_title('is_track')
+# axs[3].plot(cam0_confidence, label='cam0 confidence')
+# axs[3].plot(cam1_confidence, label='cam1 confidence')
+# axs[3].set_title('Confidence')
 # axs[3].set_xlabel('Frame')
-# axs[3].set_ylabel('is_track')
+# axs[3].set_ylabel('Confidence')
 # axs[3].legend()
 # axs[3].grid()
+
+axs[3].plot(timestamp0, is_track0, label='cam0 track')
+axs[3].plot(timestamp1, is_track1, label='cam1 track')
+# axs[3].set_title('Has track')
+axs[3].set_xlabel('Time [s]')
+axs[3].set_ylabel('Has track')
+axs[3].legend()
+axs[3].grid()
 
 plt.tight_layout()
 plt.show()
 
+
+
+#%%
+import matplotlib.pyplot as plt
+
+tracks = np.loadtxt('trajectory_radar.txt')
+
+plt.scatter(tracks[:, 0], tracks[:, 1], c='r', s=1, label="R10")
+plt.scatter(cam0[:, 0], cam0[:, 1], c='b', s=1, label="Kinect Cam0")
+plt.scatter(cam1[:, 0], cam1[:, 1], c='g', s=1, label="Kinect Cam1")
+plt.xlim(0, 4.77)
+plt.ylim(0, 4.48)
+plt.xlabel("X (m)")
+plt.ylabel("Y (m)")
+plt.title("Position Trajectory")
+plt.gca().set_aspect('equal', adjustable='box')
+plt.grid()
+plt.legend()
+plt.show()
 
