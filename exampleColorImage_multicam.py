@@ -11,31 +11,37 @@ import pykinect_azure.k4abt._k4abt as k4abt
 import time
 import cv2
 import threading
+import json
 
 running = True
 
-# Start single camera
 def start_camera(device_info):
     device = device_info['device']
     device.start_cameras(device_info['config'])
     print(
         f"Successfully started camera for device {device_info['index']} ({device_info['type']})")
 
-# Close all the devices
 def close_devices(devices):
     for device_info in devices:
         device_info['device'].close()
 
-# Camera processing loop
 def process_camera(device_info, video_writer):
     frame_count = 0
+    total_frame_count = 0
     start_time = time.time()
     global running
 
+    json_file_path = f"track_data_cam{device_info['index']}.json"
+    json_file = open(json_file_path, "w")
+    json_file.write("[")
     while running:
         device = device_info['device']
         bodyTracker = device_info['bodyTracker']
+
+        pre_time = time.time_ns()
         capture = device.update()
+        utc_timestamp_us = (time.time_ns() + pre_time) // 2000
+        device_timestamp_us = k4a.k4a_image_get_device_timestamp_usec(k4a.k4a_capture_get_depth_image(capture.handle()))
 
         ret_depth, depth_image = capture.get_colored_depth_image()
         if not ret_depth:
@@ -44,10 +50,27 @@ def process_camera(device_info, video_writer):
         body_frame = bodyTracker.update(device)
         combined_image = body_frame.draw_bodies(depth_image)
 
+        num_bodies = body_frame.get_num_bodies()
+        if num_bodies > 0:
+            joints = body_frame.json()[0]['skeleton']['joints']
+        else:
+            joints = ""
+
+        track_data = {
+            "frame": total_frame_count,
+            "utc_timestamp_ns": utc_timestamp_us,
+            "device_timestamp_us": device_timestamp_us,
+            "num_bodies": num_bodies,
+            "joints": joints}
+
+        json.dump(track_data, json_file)
+        json_file.write("\n,")
+
         video_writer.write(combined_image)
         cv2.imshow(f"Cam{device_info['index']}", combined_image)
 
         frame_count += 1
+        total_frame_count += 1
         elapsed_time = time.time() - start_time
         if elapsed_time > 1.0:
             actual_fps = frame_count / elapsed_time
@@ -58,6 +81,12 @@ def process_camera(device_info, video_writer):
         if cv2.waitKey(1) == ord('q'):
             running = False
             break
+
+    # remove the last newline and comma
+    json_file.seek(json_file.tell() - 2, 0)
+    json_file.truncate()
+    json_file.write("]")
+    json_file.close()
 
     video_writer.release()
     device.close()
