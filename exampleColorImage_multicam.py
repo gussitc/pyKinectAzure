@@ -7,6 +7,7 @@ Created on Tue Sep 17 13:29:09 2024
 
 import pykinect_azure as pykinect
 import pykinect_azure.k4a._k4a as k4a
+import pykinect_azure.k4abt._k4abt as k4abt
 import time
 import cv2
 
@@ -42,7 +43,7 @@ if __name__ == "__main__":
         device_config, device_type = device.device_configinit()
         device_config.depth_mode = k4a.K4A_DEPTH_MODE_WFOV_2X2BINNED
         device_config.color_resolution = k4a.K4A_COLOR_RESOLUTION_720P
-        device_config.camera_fps = k4a.K4A_FRAMES_PER_SECOND_5
+        device_config.camera_fps = k4a.K4A_FRAMES_PER_SECOND_15
         bodyTracker = None
         devices.append({
             'device': device,
@@ -81,7 +82,7 @@ if __name__ == "__main__":
             "NO Master device detected but detected Sub device, please check the sync cable!")
     
     for i in range(num_devices):
-        devices[i]['bodyTracker'] = pykinect.start_body_tracker(devices[i]['device'])
+        devices[i]['bodyTracker'] = pykinect.start_body_tracker(devices[i]['device'], model_type=k4abt.K4ABT_LITE_MODEL)
 
     video_writers = []
     frame_width = 512
