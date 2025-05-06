@@ -12,6 +12,8 @@ import time
 import cv2
 import threading
 
+running = True
+
 # Start single camera
 def start_camera(device_info):
     device = device_info['device']
@@ -25,69 +27,47 @@ def close_devices(devices):
         device_info['device'].close()
 
 # Camera processing loop
-def process_camera(device_info, video_writer, frame_width, frame_height, fps):
+def process_camera(device_info, video_writer):
     frame_count = 0
     start_time = time.time()
+    global running
 
-    while True:
+    while running:
         device = device_info['device']
         bodyTracker = device_info['bodyTracker']
         capture = device.update()
-        body_frame = bodyTracker.update(device)
-        ret_color, color_image = capture.get_color_image()
-        if not ret_color:
-            continue
 
         ret_depth, depth_image = capture.get_colored_depth_image()
-        ret_body, body_image_color = body_frame.get_segmentation_image()
+        if not ret_depth:
+            continue
 
-        device_info['rgb_image'] = color_image
-        device_info['depth_image'] = depth_image
-        device_info['body_image_color'] = body_image_color
-        device_info['body_frame'] = body_frame
+        body_frame = bodyTracker.update(device)
+        combined_image = body_frame.draw_bodies(depth_image)
 
-        # Combine both images
-        depth_color_image = device_info['depth_image']
-        body_image_color = device_info['body_image_color']
-        body_frame = device_info['body_frame']
-        combined_image = cv2.addWeighted(depth_color_image, 0.6, body_image_color, 0.4, 0)
-
-        # Draw the skeletons
-        combined_image = body_frame.draw_bodies(combined_image)
-
-        # Write the combined image to the video file
         video_writer.write(combined_image)
-
-        # Display the images
-        cv2.imshow(f"Depth Image_{device_info['index']}", combined_image)
+        cv2.imshow(f"Cam{device_info['index']}", combined_image)
 
         frame_count += 1
-
         elapsed_time = time.time() - start_time
         if elapsed_time > 1.0:
             actual_fps = frame_count / elapsed_time
-            print(f"Device {device_info['index']} - Actual FPS: {actual_fps:.2f}")
+            print(f"Cam{device_info['index']} - Actual FPS: {actual_fps:.2f}")
             frame_count = 0
             start_time = time.time()
 
-        # Press q key to stop
         if cv2.waitKey(1) == ord('q'):
+            running = False
             break
 
     video_writer.release()
     device.close()
 
-if __name__ == "__main__":
-    # Initialize the library, if the library is not found, add the library path as argument
+def main():
     pykinect.initialize_libraries(track_body=True)
 
-    # A list to store the devices
     devices = []
-
-    # The number of your devices
     num_devices = pykinect.k4a_device_get_installed_count()
 
-    # Modify camera configuration and start devices
     for i in range(num_devices):
         device = pykinect.Device(i)
         device_config, device_type = device.device_configinit()
@@ -101,9 +81,8 @@ if __name__ == "__main__":
             'type': device_type,
             'config': device_config,
             'index': i,
-            'rgb_image': None})
+            })
 
-    # Start cameras
     master_devices = [d for d in devices if d['type'] == 'Master']
     sub_devices = [d for d in devices if d['type'] == 'Sub']
     stan_devices = [d for d in devices if d['type'] == 'Standalone']
@@ -112,7 +91,6 @@ if __name__ == "__main__":
         start_camera(device_info)
     for device_info in sub_devices:
         start_camera(device_info)
-    # Finally open the master camera
     for device_info in master_devices:
         start_camera(device_info)
 
@@ -146,12 +124,15 @@ if __name__ == "__main__":
             fps,
             (frame_width, frame_height)
         )
-        thread = threading.Thread(target=process_camera, args=(devices[i], video_writer, frame_width, frame_height, fps))
+        thread = threading.Thread(target=process_camera, args=(devices[i], video_writer))
         threads.append(thread)
         thread.start()
 
-    # Wait for all threads to finish
     for thread in threads:
         thread.join()
 
     close_devices(devices)
+
+
+if __name__ == "__main__":
+    main()
