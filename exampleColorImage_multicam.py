@@ -6,7 +6,8 @@ Created on Tue Sep 17 13:29:09 2024
 """
 
 import pykinect_azure as pykinect
-from pykinect_azure.k4a import _k4a
+import pykinect_azure.k4a._k4a as k4a
+import time
 import cv2
 
 # Start single camera
@@ -39,7 +40,9 @@ if __name__ == "__main__":
     for i in range(num_devices):
         device = pykinect.Device(i)
         device_config, device_type = device.device_configinit()
-        device_config.depth_mode = _k4a.K4A_DEPTH_MODE_WFOV_2X2BINNED
+        device_config.depth_mode = k4a.K4A_DEPTH_MODE_WFOV_2X2BINNED
+        device_config.color_resolution = k4a.K4A_COLOR_RESOLUTION_720P
+        device_config.camera_fps = k4a.K4A_FRAMES_PER_SECOND_5
         bodyTracker = None
         devices.append({
             'device': device,
@@ -49,9 +52,7 @@ if __name__ == "__main__":
             'index': i,
             'rgb_image': None})
         
-        # cv2.namedWindow(f'Color Image_{i}',cv2.WINDOW_NORMAL)
-
-	# Start cameras
+    # Start cameras
     master_devices = [d for d in devices if d['type'] == 'Master']
     sub_devices = [d for d in devices if d['type'] == 'Sub']
     stan_devices = [d for d in devices if d['type'] == 'Standalone']
@@ -82,6 +83,23 @@ if __name__ == "__main__":
     for i in range(num_devices):
         devices[i]['bodyTracker'] = pykinect.start_body_tracker(devices[i]['device'])
 
+    video_writers = []
+    frame_width = 512
+    frame_height = 512
+    fps = 5
+
+    for i in range(num_devices):
+        video_writer = cv2.VideoWriter(
+            f'output_device_{i}.avi',
+            cv2.VideoWriter_fourcc(*'XVID'),
+            fps,
+            (frame_width, frame_height)
+        )
+        video_writers.append(video_writer)
+
+    frame_count = 0
+    start_time = time.time()
+
     while True:
 
         for device_info in devices:
@@ -100,10 +118,8 @@ if __name__ == "__main__":
             device_info['depth_image'] = depth_image
             device_info['body_image_color'] = body_image_color
             device_info['body_frame'] = body_frame
-		
+        
         for i in range(num_devices):          
-            # Plot the image
-
             # Combine both images
             depth_color_image = devices[i]['depth_image']
             body_image_color = devices[i]['body_image_color']
@@ -113,11 +129,28 @@ if __name__ == "__main__":
             # Draw the skeletons
             combined_image = body_frame.draw_bodies(combined_image)
 
-            cv2.imshow(f"Depth Image_{i}",combined_image)
-            cv2.imshow(f"Body Image_{i}",body_image_color)
-		
-		# Press q key to stop
+            # Write the combined image to the video file
+            video_writers[i].write(combined_image)
+
+            # Display the images
+            cv2.imshow(f"Depth Image_{i}", combined_image)
+            # cv2.imshow(f"Body Image_{i}", body_image_color)
+
+        frame_count += 1
+
+        elapsed_time = time.time() - start_time
+        if elapsed_time > 1.0:
+            actual_fps = frame_count / elapsed_time
+            print(f"Actual FPS: {actual_fps:.2f}")
+            frame_count = 0
+            start_time = time.time()
+        
+        # Press q key to stop
         if cv2.waitKey(1) == ord('q'):
             break
-        
+
+    # Release video writers
+    for writer in video_writers:
+        writer.release()
+
     close_devices(devices)
