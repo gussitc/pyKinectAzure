@@ -62,25 +62,25 @@ class ArucoDetector:
 				y_dist = 0 - y_offset
 				x_face = corner_dict_3d[8]
 				y_face = corner_dict_3d[9]
+				x_mirror = True
 				y_mirror = False
-				x_mirror = False
 			elif 8 in corner_dict_3d and 11 in corner_dict_3d:
 				y_dist = 0 - y_offset
 				x_face = corner_dict_3d[8]
 				y_face = corner_dict_3d[11]
-				x_mirror = False
+				x_mirror = True
 				y_mirror = True
 			elif 10 in corner_dict_3d and 11 in corner_dict_3d:
 				y_dist = y_length - y_offset
 				x_face = corner_dict_3d[10]
 				y_face = corner_dict_3d[11]
-				x_mirror = True
+				x_mirror = False
 				y_mirror = True
 			elif 10 in corner_dict_3d and 9 in corner_dict_3d:
 				y_dist = y_length - y_offset
 				x_face = corner_dict_3d[10]
 				y_face = corner_dict_3d[9]
-				x_mirror = True
+				x_mirror = False
 				y_mirror = False
 
 			if x_face is not None and y_face is not None:
