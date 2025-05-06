@@ -90,12 +90,26 @@ def main():
     devices = []
     num_devices = pykinect.k4a_device_get_installed_count()
 
+    use_lite_model = False
+
+    frame_width = 512
+    frame_height = 512
+
+    if use_lite_model:
+        fps = 15
+        camera_fps = k4a.K4A_FRAMES_PER_SECOND_15
+        model = k4abt.K4ABT_LITE_MODEL
+    else:
+        fps = 5
+        camera_fps = k4a.K4A_FRAMES_PER_SECOND_5
+        model = k4abt.K4ABT_DEFAULT_MODEL
+
     for i in range(num_devices):
         device = pykinect.Device(i)
         device_config, device_type = device.device_configinit()
         device_config.depth_mode = k4a.K4A_DEPTH_MODE_WFOV_2X2BINNED
         device_config.color_resolution = k4a.K4A_COLOR_RESOLUTION_720P
-        device_config.camera_fps = k4a.K4A_FRAMES_PER_SECOND_15
+        device_config.camera_fps = camera_fps
         bodyTracker = None
         devices.append({
             'device': device,
@@ -132,11 +146,7 @@ def main():
             "NO Master device detected but detected Sub device, please check the sync cable!")
 
     for i in range(num_devices):
-        devices[i]['bodyTracker'] = pykinect.start_body_tracker(devices[i]['device'], model_type=k4abt.K4ABT_LITE_MODEL)
-
-    frame_width = 512
-    frame_height = 512
-    fps = 15
+        devices[i]['bodyTracker'] = pykinect.start_body_tracker(devices[i]['device'], model_type=model)
 
     threads = []
     for i in range(num_devices):
