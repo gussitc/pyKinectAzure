@@ -35,8 +35,9 @@ c1 = reject_outliers(c1)
 
 # %%
 
-json_file0 = open('track_data_cam0.json', "r")
-json_file1 = open('track_data_cam1.json', "r")
+data_folder = 'long_data/'
+json_file0 = open(data_folder + 'track_data_cam0.json', "r")
+json_file1 = open(data_folder + 'track_data_cam1.json', "r")
 json_data0 = json.load(json_file0)
 json_data1 = json.load(json_file1)
 print(len(json_data0))
@@ -174,14 +175,14 @@ for i in range(min(len(cam0), len(cam1))):
 
 
 # %%
-radar_data = np.load("processed_radar_data.npz")
+radar_data = np.load(data_folder + "processed_radar_data.npz")
 trajectory = radar_data['trajectory']
 radar_timestamps = radar_data['timestamps']
 
 radar_timestamps /= 1000
 
 # TODO: why does this happen?
-radar_timestamps_offset = 500 * 1000
+radar_timestamps_offset = -500 * 1000
 radar_timestamps += radar_timestamps_offset
 
 start_idx = get_closest_timestamp_index(radar_timestamps, timestamp0[0])
