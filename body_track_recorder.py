@@ -146,7 +146,7 @@ def main():
             "NO Master device detected but detected Sub device, please check the sync cable!")
 
     for i in range(num_devices):
-        devices[i]['bodyTracker'] = pykinect.start_body_tracker(devices[i]['device'], model_type=model)
+        devices[i]['bodyTracker'] = pykinect.start_body_tracker(calibration=devices[i]['device'].calibration, model_type=model)
 
     threads = []
     for i in range(num_devices):
