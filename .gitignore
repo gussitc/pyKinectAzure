@@ -6,6 +6,11 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+*.pyc
+examples/outputImage.jpg
+
+.idea
+dist
 # C extensions
 *.so
 
