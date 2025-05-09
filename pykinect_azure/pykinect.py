@@ -50,7 +50,7 @@ def start_device(device_index=0, config=default_configuration, record=False, rec
 
     return device
 
-def start_body_tracker(model_type=default_tracker_configuration, calibration=None, tracker_configuration=default_tracker_configuration):
+def start_body_tracker(model_type=_k4abt.K4ABT_DEFAULT_MODEL, calibration=None, tracker_configuration=default_tracker_configuration):
     if not calibration:
         calibration = Device.calibration
 
