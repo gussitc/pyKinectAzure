@@ -6,6 +6,10 @@ import cv2
 import threading
 import json
 
+# TODO: light model stopped working after merging with main branch
+use_lite_model = False
+upside_down = True
+
 running = True
 
 def start_camera(device_info):
@@ -49,6 +53,7 @@ def process_camera(device_info, video_writer):
         else:
             joints = ""
 
+        # TODO: fix orientation of the joints
         track_data = {
             "frame": total_frame_count,
             "utc_timestamp_ns": utc_timestamp_us,
@@ -58,6 +63,9 @@ def process_camera(device_info, video_writer):
 
         json.dump(track_data, json_file)
         json_file.write("\n,")
+
+        if upside_down:
+            combined_image = cv2.flip(combined_image, 0)
 
         video_writer.write(combined_image)
         cv2.imshow(f"Cam{device_info['index']}", combined_image)
@@ -89,8 +97,6 @@ def main():
 
     devices = []
     num_devices = pykinect.k4a_device_get_installed_count()
-
-    use_lite_model = False
 
     frame_width = 512
     frame_height = 512
@@ -144,6 +150,12 @@ def main():
         close_devices(devices)
         raise Exception(
             "NO Master device detected but detected Sub device, please check the sync cable!")
+
+    tracker_config = pykinect.default_tracker_configuration
+    if upside_down:
+        tracker_config.sensor_orientation = k4abt.K4ABT_SENSOR_ORIENTATION_FLIP180
+    else:
+        tracker_config.sensor_orientation = k4abt.K4ABT_SENSOR_ORIENTATION_DEFAULT
 
     for i in range(num_devices):
         devices[i]['bodyTracker'] = pykinect.start_body_tracker(calibration=devices[i]['device'].calibration, model_type=model)
