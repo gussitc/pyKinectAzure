@@ -5,10 +5,16 @@ import time
 import cv2
 import threading
 import json
+from screeninfo import get_monitors
+
+monitor = get_monitors()[1]
+screen_width = monitor.width
+screen_height = monitor.height
+window_size = 0
 
 # TODO: light model stopped working after merging with main branch
 use_lite_model = False
-upside_down = True
+upside_down = False
 
 running = True
 
@@ -31,6 +37,12 @@ def process_camera(device_info, video_writer):
     json_file_path = f"track_data_cam{device_info['index']}.json"
     json_file = open(json_file_path, "w")
     json_file.write("[")
+
+    window_name = f"Cam{device_info['index']}"
+    cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+    cv2.moveWindow(window_name, window_size * (device_info["index"]), -50)
+    cv2.resizeWindow(window_name, window_size, window_size)
+
     while running:
         device = device_info['device']
         bodyTracker = device_info['bodyTracker']
@@ -68,7 +80,8 @@ def process_camera(device_info, video_writer):
             combined_image = cv2.flip(combined_image, 0)
 
         video_writer.write(combined_image)
-        cv2.imshow(f"Cam{device_info['index']}", combined_image)
+        window_name = f"Cam{device_info['index']}"
+        cv2.imshow(window_name, combined_image)
 
         frame_count += 1
         total_frame_count += 1
@@ -97,9 +110,18 @@ def main():
 
     devices = []
     num_devices = pykinect.k4a_device_get_installed_count()
+    if num_devices == 0:
+        raise Exception("No Kinect devices found!")
 
-    frame_width = 512
-    frame_height = 512
+    global window_size
+    window_size = screen_width // num_devices
+    window_size = min(window_size, screen_height)
+
+    # frame_width = 512
+    # frame_height = 512
+
+    frame_width = 1024
+    frame_height = 1024
 
     if use_lite_model:
         fps = 15
@@ -113,7 +135,7 @@ def main():
     for i in range(num_devices):
         device = pykinect.Device(i)
         device_config, device_type = device.device_configinit()
-        device_config.depth_mode = k4a.K4A_DEPTH_MODE_WFOV_2X2BINNED
+        device_config.depth_mode = k4a.K4A_DEPTH_MODE_WFOV_UNBINNED
         device_config.color_resolution = k4a.K4A_COLOR_RESOLUTION_720P
         device_config.camera_fps = camera_fps
         bodyTracker = None
