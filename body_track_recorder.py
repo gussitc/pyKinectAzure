@@ -88,11 +88,12 @@ def process_camera(device_info, video_writer):
         elapsed_time = time.time() - start_time
         if elapsed_time > 1.0:
             actual_fps = frame_count / elapsed_time
-            print(f"Cam{device_info['index']} - Actual FPS: {actual_fps:.2f}")
+            # print(f"Cam{device_info['index']} - Actual FPS: {actual_fps:.2f}")
             frame_count = 0
             start_time = time.time()
 
-        if cv2.waitKey(1) == ord('q'):
+        key = cv2.waitKey(1)
+        if key == ord('q'):
             running = False
             break
 
