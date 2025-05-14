@@ -5,6 +5,12 @@ from rotation import closest_rotation_matrix
 import json
 import glob
 
+calibration_folder = 'data/calibration/cal_0001/'
+tracking_folder = 'data/tracking/track_0002/'
+
+# emblobot in room coordinates
+c0_room = np.array([[1.846738, 2.1159978, 1.4999355]]).T * 1000
+
 # %%
 def reject_outliers(data, m=2.):
     d = np.abs(data - np.mean(data, axis=0))
@@ -13,7 +19,6 @@ def reject_outliers(data, m=2.):
     return np.delete(data, outlier_idxs, axis=0)
 
 # Load calibration data for all cameras
-calibration_folder = 'data/calibration/cal_0001/'
 calibration_files = glob.glob(f"{calibration_folder}/calibration_data_cam*.json")
 
 camera_calibrations = {}
@@ -38,7 +43,6 @@ for cam_id, calib in camera_calibrations.items():
 
 # %%
 # Load tracking data for all cameras
-tracking_folder = 'data/tracking/track_0001/'
 tracking_files = glob.glob(f"{tracking_folder}/track_data_cam*.json")
 
 camera_data = {}
@@ -112,7 +116,6 @@ for cam_id, calib in camera_calibrations.items():
 
 # Transform positions to room coordinates
 camera_room_positions = {}
-c0_room = np.array([[1.846738, 2.1159978, 1.4999355]]).T * 1000  # Example room coordinates
 
 for cam_id, positions in camera_positions.items():
     R_SVD = camera_rotations[cam_id]

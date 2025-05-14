@@ -249,7 +249,7 @@ def main():
         device_config, device_type = device.device_configinit()
         if calibration:
             device_config.depth_mode = k4a.K4A_DEPTH_MODE_NFOV_UNBINNED
-            device_config.color_resolution = k4a.K4A_COLOR_RESOLUTION_2160P
+            device_config.color_resolution = k4a.K4A_COLOR_RESOLUTION_3072P
             device_config.camera_fps = k4a.K4A_FRAMES_PER_SECOND_5
         else:
             device_config.depth_mode = k4a.K4A_DEPTH_MODE_WFOV_UNBINNED
