@@ -6,6 +6,7 @@ import cv2
 import threading
 import json
 import numpy as np
+import os
 from aruco_detector import ArucoDetector
 from screeninfo import get_monitors
 
@@ -14,10 +15,12 @@ screen_width = monitor.width
 screen_height = monitor.height
 window_size = 0
 
+data_folder = None
+
 # TODO: light model stopped working after merging with main branch
 use_lite_model = False
 upside_down = False
-calibration = True
+calibration = False
 
 running = True
 
@@ -38,7 +41,7 @@ def process_camera_tracking(device_info, video_writer):
     start_time = time.time()
     global running
 
-    json_file_path = f"track_data_cam{device_info['index']}.json"
+    json_file_path = f"{data_folder}/track_data_cam{device_info['index']}.json"
     json_file = open(json_file_path, "w")
     json_file.write("[")
 
@@ -115,7 +118,7 @@ def process_camera_tracking(device_info, video_writer):
 def process_camera_calibration(device_info, aruco_detector: ArucoDetector):
     global running
 
-    json_file_path = f"calibration_data_cam{device_info['index']}.json"
+    json_file_path = f"{data_folder}/calibration_data_cam{device_info['index']}.json"
     json_file = open(json_file_path, "w")
     json_file.write("[")
 
@@ -180,6 +183,21 @@ def main():
     num_devices = pykinect.k4a_device_get_installed_count()
     if num_devices == 0:
         raise Exception("No Kinect devices found!")
+
+    if calibration:
+        folders_path = "data/calibration"
+        folder_prefix = "data/calibration/cal_"
+    else:
+        folders_path = "data/tracking"
+        folder_prefix = "data/tracking/track_"
+
+    global data_folder
+    os.makedirs(folders_path, exist_ok=True)
+    folders = os.listdir(folders_path)
+    sorted_folders = sorted(folders, key=lambda x: int(x.split('_')[1]))
+    highest_index = int(sorted_folders[-1].split('_')[1]) if sorted_folders else 0
+    data_folder = f"{folder_prefix}{(highest_index + 1):04d}/"
+    os.makedirs(data_folder, exist_ok=True)
 
     global window_size
     if not calibration:
@@ -261,7 +279,7 @@ def main():
             devices[i]['bodyTracker'] = pykinect.start_body_tracker(calibration=devices[i]['device'].calibration, model_type=model)
 
             video_writer = cv2.VideoWriter(
-                f'output_device_{i}.avi',
+                f'{data_folder}/track_video_cam{i}.avi',
                 cv2.VideoWriter_fourcc(*'XVID'),
                 fps,
                 (frame_width, frame_height)
