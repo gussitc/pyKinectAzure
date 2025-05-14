@@ -11,7 +11,10 @@ import os
 from aruco_detector import ArucoDetector
 from screeninfo import get_monitors
 
-monitor = get_monitors()[1]
+if len(get_monitors()) > 1:
+    monitor = get_monitors()[1]
+else:
+    monitor = get_monitors()[0]
 screen_width = monitor.width
 screen_height = monitor.height
 window_size = 0
@@ -129,7 +132,7 @@ def process_camera_calibration(device_info, aruco_detector: ArucoDetector):
     cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
     row = device_info["index"] // 2
     col = device_info["index"] % 2
-    cv2.moveWindow(window_name, col * window_size, row * window_size)
+    cv2.moveWindow(window_name, col * window_size, row * window_size//2)
     cv2.resizeWindow(window_name, window_size, window_size//2)
 
     total_frame_count = 0
@@ -145,6 +148,9 @@ def process_camera_calibration(device_info, aruco_detector: ArucoDetector):
         ret_color, color_image = capture.get_color_image()
         color_image, c0, x_vec, y_vec, z_vec = aruco_detector.detect(device.calibration, color_image, depth_image)
 
+        ret_depth, colored_depth_image = capture.get_transformed_colored_depth_image()
+        combined_image = cv2.addWeighted(color_image, 0.8, colored_depth_image, 0.2, 0)
+
         if c0 is not None and not np.isnan(c0[0]):
             calibration_data = {
                 "frame": total_frame_count,
@@ -159,10 +165,10 @@ def process_camera_calibration(device_info, aruco_detector: ArucoDetector):
             json_file.flush()
 
         if upside_down:
-            color_image = cv2.flip(color_image, 0)
+            combined_image = cv2.flip(combined_image, 0)
 
         window_name = f"Cam{device_info['index']}"
-        cv2.imshow(window_name, color_image)
+        cv2.imshow(window_name, combined_image)
 
         total_frame_count += 1
 
@@ -233,12 +239,14 @@ def main():
     for i in range(num_devices):
         device = pykinect.Device(i)
         device_config, device_type = device.device_configinit()
-        device_config.depth_mode = k4a.K4A_DEPTH_MODE_WFOV_UNBINNED
         if calibration:
-            device_config.color_resolution = k4a.K4A_COLOR_RESOLUTION_1080P
+            device_config.depth_mode = k4a.K4A_DEPTH_MODE_NFOV_UNBINNED
+            device_config.color_resolution = k4a.K4A_COLOR_RESOLUTION_2160P
+            device_config.camera_fps = k4a.K4A_FRAMES_PER_SECOND_5
         else:
+            device_config.depth_mode = k4a.K4A_DEPTH_MODE_WFOV_UNBINNED
             device_config.color_resolution = k4a.K4A_COLOR_RESOLUTION_720P
-        device_config.camera_fps = camera_fps
+            device_config.camera_fps = camera_fps
         bodyTracker = None
         devices.append({
             'device': device,
