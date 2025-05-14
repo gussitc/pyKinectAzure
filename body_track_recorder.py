@@ -1,3 +1,4 @@
+import argparse
 import pykinect_azure as pykinect
 import pykinect_azure.k4a._k4a as k4a
 import pykinect_azure.k4abt._k4abt as k4abt
@@ -15,15 +16,17 @@ screen_width = monitor.width
 screen_height = monitor.height
 window_size = 0
 
-data_folder = None
-
-# TODO: light model stopped working after merging with main branch
-use_lite_model = False
 upside_down = False
-calibration = False
-
+data_folder = None
 running = True
 
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Kinect Azure Multicam Body Tracking")
+    parser.add_argument("--calib", action="store_true", help="Run in calibration mode")
+    # TODO: light model stopped working after merging with main branch
+    parser.add_argument("--lite", action="store_true", help="Use lite model for body tracking")
+    parser.add_argument("--flip", action="store_true", help="Flip the camera upside down")
+    return parser.parse_args()
 
 def start_camera(device_info):
     device = device_info['device']
@@ -177,6 +180,12 @@ def process_camera_calibration(device_info, aruco_detector: ArucoDetector):
     device.close()
 
 def main():
+    args = parse_arguments()
+    calibration = args.calib
+    global upside_down
+    upside_down = args.flip
+    use_lite_model = args.lite
+
     pykinect.initialize_libraries(track_body=not calibration)
 
     devices = []
