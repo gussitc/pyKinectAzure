@@ -81,7 +81,7 @@ def process_camera_tracking(device_info, video_writer):
         # TODO: fix orientation of the joints
         track_data = {
             "frame": total_frame_count,
-            "utc_timestamp_ns": utc_timestamp_us,
+            "utc_timestamp_us": utc_timestamp_us,
             "device_timestamp_us": device_timestamp_us,
             "num_bodies": num_bodies,
             "joints": joints}
