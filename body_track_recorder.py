@@ -19,6 +19,7 @@ screen_width = monitor.width
 screen_height = monitor.height
 window_size = 0
 
+record = True
 upside_down = False
 data_folder = None
 running = True
@@ -29,6 +30,7 @@ def parse_arguments():
     # TODO: light model stopped working after merging with main branch
     parser.add_argument("--lite", action="store_true", help="Use lite model for body tracking")
     parser.add_argument("--flip", action="store_true", help="Flip the camera upside down")
+    parser.add_argument("--record", action="store_true", help="Record data to file")
     return parser.parse_args()
 
 def start_camera(device_info):
@@ -47,9 +49,10 @@ def process_camera_tracking(device_info, video_writer):
     start_time = time.time()
     global running
 
-    json_file_path = f"{data_folder}/track_data_cam{device_info['index']}.json"
-    json_file = open(json_file_path, "w")
-    json_file.write("[")
+    if record:
+        json_file_path = f"{data_folder}/track_data_cam{device_info['index']}.json"
+        json_file = open(json_file_path, "w")
+        json_file.write("[")
 
     window_name = f"Cam{device_info['index']}"
     cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
@@ -78,22 +81,23 @@ def process_camera_tracking(device_info, video_writer):
         else:
             joints = ""
 
-        # TODO: fix orientation of the joints
-        track_data = {
-            "frame": total_frame_count,
-            "utc_timestamp_us": utc_timestamp_us,
-            "device_timestamp_us": device_timestamp_us,
-            "num_bodies": num_bodies,
-            "joints": joints}
-
-        json.dump(track_data, json_file)
-        json_file.write(",\n")
-        json_file.flush()
-
         if upside_down:
             combined_image = cv2.flip(combined_image, 0)
 
-        video_writer.write(combined_image)
+        if record:
+            track_data = {
+                "frame": total_frame_count,
+                "utc_timestamp_us": utc_timestamp_us,
+                "device_timestamp_us": device_timestamp_us,
+                "num_bodies": num_bodies,
+                "joints": joints}
+
+            json.dump(track_data, json_file)
+            json_file.write(",\n")
+            json_file.flush()
+
+            video_writer.write(combined_image)
+
         window_name = f"Cam{device_info['index']}"
         cv2.imshow(window_name, combined_image)
 
@@ -112,21 +116,23 @@ def process_camera_tracking(device_info, video_writer):
             break
 
     # remove the last newline and comma
-    json_file.seek(json_file.tell() - 3, 0)
-    json_file.truncate()
-    json_file.write("]")
-    json_file.close()
+    if record:
+        json_file.seek(json_file.tell() - 3, 0)
+        json_file.truncate()
+        json_file.write("]")
+        json_file.close()
 
-    video_writer.release()
+        video_writer.release()
     device.close()
 
 
 def process_camera_calibration(device_info, aruco_detector: ArucoDetector):
     global running
 
-    json_file_path = f"{data_folder}/calibration_data_cam{device_info['index']}.json"
-    json_file = open(json_file_path, "w")
-    json_file.write("[")
+    if record:
+        json_file_path = f"{data_folder}/calibration_data_cam{device_info['index']}.json"
+        json_file = open(json_file_path, "w")
+        json_file.write("[")
 
     window_name = f"Cam{device_info['index']}"
     cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
@@ -151,7 +157,7 @@ def process_camera_calibration(device_info, aruco_detector: ArucoDetector):
         ret_depth, colored_depth_image = capture.get_transformed_colored_depth_image()
         combined_image = cv2.addWeighted(color_image, 0.8, colored_depth_image, 0.2, 0)
 
-        if c0 is not None and not np.isnan(c0[0]):
+        if record and c0 is not None and not np.isnan(c0[0]):
             calibration_data = {
                 "frame": total_frame_count,
                 "c0": c0.tolist(),
@@ -177,20 +183,21 @@ def process_camera_calibration(device_info, aruco_detector: ArucoDetector):
             running = False
             break
 
-    # remove the last newline and comma
-    json_file.seek(json_file.tell() - 3, 0)
-    json_file.truncate()
-    json_file.write("]")
-    json_file.close()
+    if record:
+        json_file.seek(json_file.tell() - 3, 0)
+        json_file.truncate()
+        json_file.write("]")
+        json_file.close()
 
     device.close()
 
 def main():
     args = parse_arguments()
     calibration = args.calib
-    global upside_down
+    global upside_down, record
     upside_down = args.flip
     use_lite_model = args.lite
+    record = args.record
 
     pykinect.initialize_libraries(track_body=not calibration)
 
@@ -199,20 +206,21 @@ def main():
     if num_devices == 0:
         raise Exception("No Kinect devices found!")
 
-    if calibration:
-        folders_path = "data/calibration"
-        folder_prefix = "data/calibration/cal_"
-    else:
-        folders_path = "data/tracking"
-        folder_prefix = "data/tracking/track_"
+    if record:
+        if calibration:
+            folders_path = "data/calibration"
+            folder_prefix = "data/calibration/cal_"
+        else:
+            folders_path = "data/tracking"
+            folder_prefix = "data/tracking/track_"
 
-    global data_folder
-    os.makedirs(folders_path, exist_ok=True)
-    folders = os.listdir(folders_path)
-    sorted_folders = sorted(folders, key=lambda x: int(x.split('_')[1]))
-    highest_index = int(sorted_folders[-1].split('_')[1]) if sorted_folders else 0
-    data_folder = f"{folder_prefix}{(highest_index + 1):04d}/"
-    os.makedirs(data_folder, exist_ok=True)
+        global data_folder
+        os.makedirs(folders_path, exist_ok=True)
+        folders = os.listdir(folders_path)
+        sorted_folders = sorted(folders, key=lambda x: int(x.split('_')[1]))
+        highest_index = int(sorted_folders[-1].split('_')[1]) if sorted_folders else 0
+        data_folder = f"{folder_prefix}{(highest_index + 1):04d}/"
+        os.makedirs(data_folder, exist_ok=True)
 
     global window_size
     if not calibration:
@@ -295,12 +303,15 @@ def main():
         if not calibration:
             devices[i]['bodyTracker'] = pykinect.start_body_tracker(calibration=devices[i]['device'].calibration, model_type=model)
 
-            video_writer = cv2.VideoWriter(
-                f'{data_folder}/track_video_cam{i}.avi',
-                cv2.VideoWriter_fourcc(*'XVID'),
-                fps,
-                (frame_width, frame_height)
-            )
+            if record:
+                video_writer = cv2.VideoWriter(
+                    f'{data_folder}/track_video_cam{i}.avi',
+                    cv2.VideoWriter_fourcc(*'XVID'),
+                    fps,
+                    (frame_width, frame_height)
+                )
+            else:
+                video_writer = None
 
             thread = threading.Thread(target=process_camera_tracking, args=(devices[i], video_writer))
         else:
