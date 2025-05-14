@@ -5,6 +5,7 @@ import time
 import cv2
 import threading
 import json
+import numpy as np
 from aruco_detector import ArucoDetector
 from screeninfo import get_monitors
 
@@ -16,7 +17,7 @@ window_size = 0
 # TODO: light model stopped working after merging with main branch
 use_lite_model = False
 upside_down = False
-calibration = False
+calibration = True
 
 running = True
 
@@ -43,7 +44,7 @@ def process_camera_tracking(device_info, video_writer):
 
     window_name = f"Cam{device_info['index']}"
     cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
-    cv2.moveWindow(window_name, window_size * (device_info["index"]), -50)
+    cv2.moveWindow(window_name, window_size * (device_info["index"]), 0)
     cv2.resizeWindow(window_name, window_size, window_size)
 
     while running:
@@ -77,7 +78,8 @@ def process_camera_tracking(device_info, video_writer):
             "joints": joints}
 
         json.dump(track_data, json_file)
-        json_file.write("\n,")
+        json_file.write(",\n")
+        json_file.flush()
 
         if upside_down:
             combined_image = cv2.flip(combined_image, 0)
@@ -101,7 +103,7 @@ def process_camera_tracking(device_info, video_writer):
             break
 
     # remove the last newline and comma
-    json_file.seek(json_file.tell() - 2, 0)
+    json_file.seek(json_file.tell() - 3, 0)
     json_file.truncate()
     json_file.write("]")
     json_file.close()
@@ -119,8 +121,12 @@ def process_camera_calibration(device_info, aruco_detector: ArucoDetector):
 
     window_name = f"Cam{device_info['index']}"
     cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
-    cv2.moveWindow(window_name, window_size * (device_info["index"]), -50)
-    cv2.resizeWindow(window_name, window_size, window_size)
+    row = device_info["index"] // 2
+    col = device_info["index"] % 2
+    cv2.moveWindow(window_name, col * window_size, row * window_size)
+    cv2.resizeWindow(window_name, window_size, window_size//2)
+
+    total_frame_count = 0
 
     while running:
         device = device_info['device']
@@ -133,29 +139,26 @@ def process_camera_calibration(device_info, aruco_detector: ArucoDetector):
         ret_color, color_image = capture.get_color_image()
         color_image, c0, x_vec, y_vec, z_vec = aruco_detector.detect(device.calibration, color_image, depth_image)
 
-        calibration_data = {
-            "frame": total_frame_count,
-            "c0": c0,
-            "x_vec": x_vec}
+        if c0 is not None and not np.isnan(c0[0]):
+            calibration_data = {
+                "frame": total_frame_count,
+                "c0": c0.tolist(),
+                "x_vec": x_vec.tolist(),
+                "y_vec": y_vec.tolist(),
+                "z_vec": z_vec.tolist()
+            }
 
-        json.dump(track_data, json_file)
-        json_file.write("\n,")
+            json.dump(calibration_data, json_file)
+            json_file.write(",\n")
+            json_file.flush()
 
         if upside_down:
-            combined_image = cv2.flip(combined_image, 0)
+            color_image = cv2.flip(color_image, 0)
 
-        video_writer.write(combined_image)
         window_name = f"Cam{device_info['index']}"
-        cv2.imshow(window_name, combined_image)
+        cv2.imshow(window_name, color_image)
 
-        frame_count += 1
         total_frame_count += 1
-        elapsed_time = time.time() - start_time
-        if elapsed_time > 1.0:
-            actual_fps = frame_count / elapsed_time
-            # print(f"Cam{device_info['index']} - Actual FPS: {actual_fps:.2f}")
-            frame_count = 0
-            start_time = time.time()
 
         key = cv2.waitKey(1)
         if key == ord('q'):
@@ -163,12 +166,11 @@ def process_camera_calibration(device_info, aruco_detector: ArucoDetector):
             break
 
     # remove the last newline and comma
-    json_file.seek(json_file.tell() - 2, 0)
+    json_file.seek(json_file.tell() - 3, 0)
     json_file.truncate()
     json_file.write("]")
     json_file.close()
 
-    video_writer.release()
     device.close()
 
 def main():
@@ -180,8 +182,11 @@ def main():
         raise Exception("No Kinect devices found!")
 
     global window_size
-    window_size = screen_width // num_devices
-    window_size = min(window_size, screen_height)
+    if not calibration:
+        window_size = screen_width // num_devices
+        window_size = min(window_size, screen_height)
+    else:
+        window_size = screen_width // 2
 
     # frame_width = 512
     # frame_height = 512
