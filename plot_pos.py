@@ -5,11 +5,11 @@ from rotation import closest_rotation_matrix
 import json
 import glob
 
-calibration_folder = 'data/calibration/cal_0001/'
+calibration_folder = 'data/calibration/cal_0002/'
 tracking_folder = 'data/tracking/track_0002/'
 
 # emblobot in room coordinates
-c0_room = np.array([[1.846738, 2.1159978, 1.4999355]]).T * 1000
+c0_room = np.array([[2.36, 2.11, 1.51]]).T * 1000
 
 # %%
 def reject_outliers(data, m=2.):
@@ -81,7 +81,15 @@ def get_joint_confidences(json_data, joint_id):
 def get_timestamps(json_data):
     return np.array(
         [
-            json_data[i]["utc_timestamp_ns"]
+            json_data[i]["device_timestamp_us"]
+            for i in range(len(json_data))
+        ]
+    )
+
+def get_utc_timestamps(json_data):
+    return np.array(
+        [
+            json_data[i]["utc_timestamp_us"]
             for i in range(len(json_data))
         ]
     )
@@ -92,6 +100,8 @@ camera_positions = {}
 camera_confidences = {}
 camera_timestamps = {}
 camera_tracks = {}
+
+common_utc_timestamps = get_utc_timestamps(camera_data[camera_ids[0]])
 
 for cam_id, json_data in camera_data.items():
     camera_positions[cam_id] = get_joint_positions(json_data, joint_id)
@@ -127,30 +137,72 @@ for cam_id, positions in camera_positions.items():
 
 # %%
 # Handle missing tracks by replacing with closest timestamps from other cameras
-def get_closest_timestamp_index(timestamp, target_timestamp):
-    closest_index = (np.abs(timestamp - target_timestamp)).argmin()
+def get_closest_timestamp_index(timestamps, target_timestamp):
+    closest_index = (np.abs(timestamps - target_timestamp)).argmin()
     return closest_index
 
-# TODO: Implement the logic to fill in missing camera positions
-# for i in range(len(camera_ids)):
-#     cam_id = camera_ids[i]
-#     for j in range(len(camera_positions[cam_id])):
-#         if not camera_tracks[cam_id][j]:
-#             for other_cam_id in camera_ids:
-#                 if other_cam_id != cam_id and camera_tracks[other_cam_id][j]:
-#                     closest_idx = get_closest_timestamp_index(
-#                         camera_timestamps[other_cam_id], camera_timestamps[cam_id][j]
-#                     )
-#                     camera_positions[cam_id][j] = camera_positions[other_cam_id][closest_idx]
-#                     break
+reference_frame = 10
+cam_frame_offsets = {'0': reference_frame}
+min_length = len(camera_timestamps['0']) - reference_frame
+for cam_id, timestamps in camera_timestamps.items():
+    if cam_id == '0':
+        continue
+    cam_frame_offsets[cam_id] = get_closest_timestamp_index(timestamps, camera_timestamps['0'][reference_frame])
+    min_length = min(min_length, len(timestamps) - cam_frame_offsets[cam_id])
 
-# %%
-# Plot data for all cameras
+print("min length:", min_length)
+print("Camera frame offsets:")
+for cam_id, offset in cam_frame_offsets.items():
+    print(f"Camera {cam_id}: {offset}")
+    print(f"Camera {cam_id} timestamps: {camera_timestamps[cam_id][offset]}")
+
+
+#%%
+# Align and trim data based on calculated offsets and minimum length
+common_utc_timestamps = common_utc_timestamps[reference_frame:reference_frame + min_length]
+timestamps = (common_utc_timestamps - common_utc_timestamps[0]) / 1e6
+
+for cam_id in camera_ids:
+    offset = cam_frame_offsets[cam_id]
+    camera_room_positions[cam_id] = camera_room_positions[cam_id][offset:offset + min_length]
+    camera_tracks[cam_id] = camera_tracks[cam_id][offset:offset + min_length]
+
+#%%
+
+# make a superposition of all cameras, which is the average of all cameras that have a track
+camera_superposition = np.zeros((min_length, 3))
+camera_superposition_track = np.zeros((min_length, 1))
+for i in range(min_length):
+    count = 0
+    for cam_id in camera_ids:
+        if camera_tracks[cam_id][i]:
+            camera_superposition[i] += camera_room_positions[cam_id][i]
+            camera_superposition_track[i] += 1
+            count += 1
+    if count > 0:
+        camera_superposition[i] /= count
+    else:
+        camera_superposition[i] = np.array([0, 0, 0])
+    camera_superposition_track[i] = 1 if count > 0 else 0
+
+#%%
+
+def get_next_track_index(tracks, start_index):
+    for i in range(start_index, len(tracks)):
+        if tracks[i] == 1:
+            return i
+    return -1
+
+# if the camera superposition track is 0, the camera superposition is set the average of the previous and next valid frame
+for i in range(min_length):
+    if camera_superposition_track[i] == 0:
+        next_track_index = get_next_track_index(camera_superposition_track, i + 1)
+        camera_superposition[i] = (camera_superposition[i - 1] + camera_superposition[next_track_index]) / 2
+
+#%%
 fig, axs = plt.subplots(4, 1, figsize=(10, 10))
 
-reference_timestamp = camera_timestamps[camera_ids[0]][0]
 for cam_id in camera_ids:
-    timestamps = (camera_timestamps[cam_id] - reference_timestamp) / 1e6
     positions = camera_room_positions[cam_id]
     axs[0].plot(timestamps, positions[:, 0], label=f'cam{cam_id} x')
     axs[1].plot(timestamps, positions[:, 1], label=f'cam{cam_id} y')
@@ -162,6 +214,11 @@ axs[1].set_ylabel('Y pos [m]')
 axs[2].set_ylabel('Z pos [m]')
 axs[3].set_ylabel('Has track')
 axs[3].set_xlabel('Time [s]')
+
+axs[0].plot(timestamps, camera_superposition[:, 0], label='super x', color='black', linestyle='--')
+axs[1].plot(timestamps, camera_superposition[:, 1], label='super y', color='black', linestyle='--')
+axs[2].plot(timestamps, camera_superposition[:, 2], label='super z', color='black', linestyle='--')
+axs[3].plot(timestamps, camera_superposition_track, label='super track', color='black', linestyle='--')
 
 for ax in axs:
     ax.legend()
