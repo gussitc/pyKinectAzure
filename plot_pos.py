@@ -5,8 +5,8 @@ from rotation import closest_rotation_matrix
 import json
 import glob
 
-calibration_folder = 'data/calibration/cal_0002/'
-tracking_folder = 'data/tracking/track_0002/'
+calibration_folder = 'data/calibration/cal_0003/'
+tracking_folder = 'data/tracking/track_0004/'
 
 # emblobot in room coordinates
 c0_room = np.array([[2.36, 2.11, 1.51]]).T * 1000
@@ -200,6 +200,27 @@ for i in range(min_length):
         camera_superposition[i] = (camera_superposition[i - 1] + camera_superposition[next_track_index]) / 2
 
 #%%
+
+file_dir = 'radar_data/'
+num = 0
+radar_data = np.load(f"{file_dir}/processed_radar_data{num}.npz")
+trajectory = radar_data['trajectory']
+
+emblo_pos = np.array([2.13489719, 2.0658243, 1.38588626])
+trajectory = trajectory - emblo_pos.T + (c0_room/1000).T
+
+radar_timestamps = radar_data['timestamps']
+radar_timestamps = (radar_timestamps/1e3 - common_utc_timestamps[0]) / 1e6
+print("radar timestamps:", radar_timestamps[0])
+
+radar_timestamp_offset = -1
+radar_timestamps = radar_timestamps[:trajectory.shape[0]] + radar_timestamp_offset
+
+valid_indices = np.where((radar_timestamps >= 0) & (radar_timestamps <= timestamps[-1]))[0]
+trajectory = trajectory[valid_indices]
+radar_timestamps = radar_timestamps[valid_indices]
+
+#%%
 fig, axs = plt.subplots(4, 1, figsize=(10, 10))
 
 for cam_id in camera_ids:
@@ -219,6 +240,10 @@ axs[0].plot(timestamps, camera_superposition[:, 0], label='super x', color='blac
 axs[1].plot(timestamps, camera_superposition[:, 1], label='super y', color='black', linestyle='--')
 axs[2].plot(timestamps, camera_superposition[:, 2], label='super z', color='black', linestyle='--')
 axs[3].plot(timestamps, camera_superposition_track, label='super track', color='black', linestyle='--')
+
+axs[0].plot(radar_timestamps, trajectory[:, 0], label='radar x')
+axs[1].plot(radar_timestamps, trajectory[:, 1], label='radar y')
+axs[2].plot(radar_timestamps, trajectory[:, 2], label='radar z')
 
 for ax in axs:
     ax.legend()
