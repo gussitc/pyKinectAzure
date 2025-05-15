@@ -6,7 +6,12 @@ import json
 import glob
 
 calibration_folder = 'data/calibration/cal_0003/'
-tracking_folder = 'data/tracking/track_0004/'
+
+# tracking_folder = 'data/tracking/track_0004/'
+# radar_data_file = 'processed_radar_data0.npz'
+
+tracking_folder = 'data/tracking/track_0005/'
+radar_data_file = 'processed_radar_data1.npz'
 
 # emblobot in room coordinates
 c0_room = np.array([[2.36, 2.11, 1.51]]).T * 1000
@@ -201,9 +206,8 @@ for i in range(min_length):
 
 #%%
 
-file_dir = 'radar_data/'
-num = 0
-radar_data = np.load(f"{file_dir}/processed_radar_data{num}.npz")
+radar_data_file_dir = 'radar_data/'
+radar_data = np.load(f"{radar_data_file_dir}/{radar_data_file}")
 trajectory = radar_data['trajectory']
 
 emblo_pos = np.array([2.13489719, 2.0658243, 1.38588626])
