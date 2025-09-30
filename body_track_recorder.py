@@ -31,6 +31,7 @@ def parse_arguments():
     parser.add_argument("--lite", action="store_true", help="Use lite model for body tracking")
     parser.add_argument("--flip", action="store_true", help="Flip the camera upside down")
     parser.add_argument("--record", action="store_true", help="Record data to file")
+    parser.add_argument("--data-folder", type=str, default=None, help="Optional output folder to store recording/calibration data (will be created if it doesn't exist). If not provided an auto-incremented folder is generated under data/calibration or data/tracking.")
     return parser.parse_args()
 
 def start_camera(device_info):
@@ -198,6 +199,7 @@ def main():
     upside_down = args.flip
     use_lite_model = args.lite
     record = args.record
+    user_data_folder = args.data_folder
 
     pykinect.initialize_libraries(track_body=not calibration)
 
@@ -207,20 +209,31 @@ def main():
         raise Exception("No Kinect devices found!")
 
     if record:
-        if calibration:
-            folders_path = "data/calibration"
-            folder_prefix = "data/calibration/cal_"
-        else:
-            folders_path = "data/tracking"
-            folder_prefix = "data/tracking/track_"
-
         global data_folder
-        os.makedirs(folders_path, exist_ok=True)
-        folders = os.listdir(folders_path)
-        sorted_folders = sorted(folders, key=lambda x: int(x.split('_')[1]))
-        highest_index = int(sorted_folders[-1].split('_')[1]) if sorted_folders else 0
-        data_folder = f"{folder_prefix}{(highest_index + 1):04d}/"
-        os.makedirs(data_folder, exist_ok=True)
+        if user_data_folder is not None:
+            # Use provided folder directly. If it exists and not empty we still proceed (user responsibility)
+            data_folder = user_data_folder.rstrip('/\\') + '/'
+            os.makedirs(data_folder, exist_ok=True)
+        else:
+            if calibration:
+                folders_path = "data/calibration"
+                folder_prefix = "data/calibration/cal_"
+            else:
+                folders_path = "data/tracking"
+                folder_prefix = "data/tracking/track_"
+
+            os.makedirs(folders_path, exist_ok=True)
+            folders = [f for f in os.listdir(folders_path) if os.path.isdir(os.path.join(folders_path, f))]
+            # Filter only folders matching expected prefix pattern
+            folders = [f for f in folders if '_' in f]
+            try:
+                sorted_folders = sorted(folders, key=lambda x: int(x.split('_')[1]))
+                highest_index = int(sorted_folders[-1].split('_')[1]) if sorted_folders else 0
+            except (IndexError, ValueError):
+                highest_index = 0
+            data_folder = f"{folder_prefix}{(highest_index + 1):04d}/"
+            os.makedirs(data_folder, exist_ok=True)
+        print(f"Recording data to folder: {data_folder}")
 
     global window_size
     if not calibration:
