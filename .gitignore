@@ -1,8 +1,16 @@
+*data/
+*.avi
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 
+*.pyc
+examples/outputImage.jpg
+
+.idea
+dist
 # C extensions
 *.so
 

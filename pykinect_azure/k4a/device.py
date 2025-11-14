@@ -33,10 +33,11 @@ class Device:
 	def handle(self):
 		return self._handle
 
-	def start(self, configuration, record=False, record_filepath="output.mkv"):
+	def start(self, configuration, record=False, record_filepath="output.mkv", start_imu=True):
 		self.configuration = configuration
 		self.start_cameras(configuration)
-		self.start_imu()
+		if start_imu:
+			self.start_imu()
 
 		if record:
 			self.record = Record(self._handle, self.configuration.handle(), record_filepath)
